@@ -2,6 +2,7 @@ package com.juanweather.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -1326,3 +1330,333 @@ fun PlaceholderScreen(
         }
     }
 }
+
+/**
+ * Weather Preferences Screen
+ */
+@Composable
+fun WeatherPreferencesScreen(
+    onBack: () -> Unit
+) {
+    val tempUnit = remember { mutableStateOf("Celsius") }
+    val rainfallAlerts = remember { mutableStateOf(true) }
+    val alertThreshold = remember { mutableStateOf(70f) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        // Background image
+        AsyncImage(
+            model = R.drawable.background,
+            contentDescription = "Weather background",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+
+        // Semi-transparent overlay
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0x51515199))
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
+            // Back button
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, top = 16.dp, end = 12.dp)
+                    .clickable { onBack() },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier.size(20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val centerY = size.height / 2
+                        val centerX = size.width / 2
+                        val length = size.width / 2.5f
+
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX + length / 2, centerY - length / 2),
+                            end = Offset(centerX - length / 2, centerY),
+                            strokeWidth = 2.2f
+                        )
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX - length / 2, centerY),
+                            end = Offset(centerX + length / 2, centerY + length / 2),
+                            strokeWidth = 2.2f
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Previous",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // Title card
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .background(
+                        color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Weather Preferences",
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Preferences container
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Temperature Unit Selector
+                PreferenceSelectItem(
+                    title = "Temperature Unit",
+                    value = tempUnit.value,
+                    onSelect = {
+                        tempUnit.value = if (tempUnit.value == "Celsius") "Fahrenheit" else "Celsius"
+                    }
+                )
+
+                // Rainfall Alerts Toggle
+                PreferenceToggleItem(
+                    title = "Toggle Rainfall Alerts",
+                    isEnabled = rainfallAlerts.value,
+                    onToggle = { rainfallAlerts.value = it }
+                )
+
+                // Alert Threshold Slider
+                PreferenceSliderItem(
+                    title = "Set Alert Threshold",
+                    value = alertThreshold.value,
+                    onValueChange = { alertThreshold.value = it }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(30.dp))
+        }
+    }
+}
+
+/**
+ * Select preference item (e.g., Temperature Unit)
+ */
+@Composable
+fun PreferenceSelectItem(
+    title: String,
+    value: String,
+    onSelect: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .clickable { onSelect() }
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = title,
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = value,
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 13.sp
+                )
+
+                Box(
+                    modifier = Modifier.size(20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val centerX = size.width / 2
+                        val centerY = size.height / 2
+                        val length = size.width / 3
+
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX - length / 2, centerY - length / 2),
+                            end = Offset(centerX + length / 2, centerY),
+                            strokeWidth = 2f,
+                            alpha = 0.5f
+                        )
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX + length / 2, centerY),
+                            end = Offset(centerX - length / 2, centerY + length / 2),
+                            strokeWidth = 2f,
+                            alpha = 0.5f
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Toggle preference item (e.g., Rainfall Alerts)
+ */
+@Composable
+fun PreferenceToggleItem(
+    title: String,
+    isEnabled: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = title,
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+
+            Switch(
+                checked = isEnabled,
+                onCheckedChange = onToggle,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color(0xFF4CAF50),
+                    checkedTrackColor = Color(0xFF81C784),
+                    uncheckedThumbColor = Color(0xFFF4F3F4),
+                    uncheckedTrackColor = Color(0xFF767577)
+                ),
+                modifier = Modifier.padding(start = 12.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Slider preference item (e.g., Alert Threshold)
+ */
+@Composable
+fun PreferenceSliderItem(
+    title: String,
+    value: Float,
+    onValueChange: (Float) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .padding(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Header with title and value
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+
+                Text(
+                    text = "${value.toInt()}%",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 13.sp
+                )
+            }
+
+            // Slider
+            Slider(
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = 0f..100f,
+                modifier = Modifier.fillMaxWidth(),
+                colors = androidx.compose.material3.SliderDefaults.colors(
+                    thumbColor = Color(0xFF81C784),
+                    activeTrackColor = Color(0xFF81C784),
+                    inactiveTrackColor = Color.White.copy(alpha = 0.2f)
+                )
+            )
+
+            // Labels
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "0%",
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 11.sp
+                )
+
+                Text(
+                    text = "100%",
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+}
+

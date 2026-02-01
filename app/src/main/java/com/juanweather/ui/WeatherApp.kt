@@ -7,6 +7,7 @@ import com.juanweather.ui.screens.AddLocationScreen
 import com.juanweather.ui.screens.PlaceholderScreen
 import com.juanweather.ui.screens.SettingsScreen
 import com.juanweather.ui.screens.WeatherDashboardScreen
+import com.juanweather.ui.screens.WeatherPreferencesScreen
 
 /**
  * Enumeration for different app screens
@@ -106,9 +107,8 @@ fun WeatherApp() {
         }
 
         AppScreen.WeatherPreferences -> {
-            // Placeholder for Weather Preferences screen
-            PlaceholderScreen(
-                title = "Weather Preferences",
+            // Weather Preferences screen with functional UI
+            WeatherPreferencesScreen(
                 onBack = {
                     navigationController.navigateBack()
                     currentScreen.value = navigationController.getCurrentScreen()
