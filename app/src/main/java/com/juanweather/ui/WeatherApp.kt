@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import com.juanweather.ui.screens.AddLocationScreen
+import com.juanweather.ui.screens.PlaceholderScreen
 import com.juanweather.ui.screens.SettingsScreen
 import com.juanweather.ui.screens.WeatherDashboardScreen
 
@@ -13,7 +14,11 @@ import com.juanweather.ui.screens.WeatherDashboardScreen
 enum class AppScreen {
     Dashboard,
     AddLocation,
-    Settings
+    Settings,
+    WeatherPreferences,
+    EmergencyContact,
+    SOSSettings,
+    AboutSupport
 }
 
 /**
@@ -77,6 +82,66 @@ fun WeatherApp() {
 
         AppScreen.Settings -> {
             SettingsScreen(
+                onBack = {
+                    navigationController.navigateBack()
+                    currentScreen.value = navigationController.getCurrentScreen()
+                },
+                onNavigateToWeatherPreferences = {
+                    navigationController.navigate(AppScreen.WeatherPreferences)
+                    currentScreen.value = AppScreen.WeatherPreferences
+                },
+                onNavigateToEmergencyContact = {
+                    navigationController.navigate(AppScreen.EmergencyContact)
+                    currentScreen.value = AppScreen.EmergencyContact
+                },
+                onNavigateToSOSSettings = {
+                    navigationController.navigate(AppScreen.SOSSettings)
+                    currentScreen.value = AppScreen.SOSSettings
+                },
+                onNavigateToAboutSupport = {
+                    navigationController.navigate(AppScreen.AboutSupport)
+                    currentScreen.value = AppScreen.AboutSupport
+                }
+            )
+        }
+
+        AppScreen.WeatherPreferences -> {
+            // Placeholder for Weather Preferences screen
+            PlaceholderScreen(
+                title = "Weather Preferences",
+                onBack = {
+                    navigationController.navigateBack()
+                    currentScreen.value = navigationController.getCurrentScreen()
+                }
+            )
+        }
+
+        AppScreen.EmergencyContact -> {
+            // Placeholder for Emergency Contact screen
+            PlaceholderScreen(
+                title = "Emergency Contact",
+                onBack = {
+                    navigationController.navigateBack()
+                    currentScreen.value = navigationController.getCurrentScreen()
+                }
+            )
+        }
+
+        AppScreen.SOSSettings -> {
+            // Placeholder for SOS Settings screen
+            PlaceholderScreen(
+                title = "SOS Settings",
+                onBack = {
+                    navigationController.navigateBack()
+                    currentScreen.value = navigationController.getCurrentScreen()
+                }
+            )
+        }
+
+        AppScreen.AboutSupport -> {
+            // Placeholder for About & Support screen
+            PlaceholderScreen(
+                title = "About & Support",
                 onBack = {
                     navigationController.navigateBack()
                     currentScreen.value = navigationController.getCurrentScreen()

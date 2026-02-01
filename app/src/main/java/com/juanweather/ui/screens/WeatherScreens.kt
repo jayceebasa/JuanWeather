@@ -858,96 +858,469 @@ fun WeatherIconLarge(iconType: String) {
 }
 
 /**
+ * Settings item data model
+ */
+data class SettingsItem(
+    val id: String,
+    val title: String,
+    val icon: String  // "settings", "phone", "alert", "info"
+)
+
+/**
  * Settings Screen
  */
 @Composable
 fun SettingsScreen(
+    onBack: () -> Unit,
+    onNavigateToWeatherPreferences: () -> Unit = {},
+    onNavigateToEmergencyContact: () -> Unit = {},
+    onNavigateToSOSSettings: () -> Unit = {},
+    onNavigateToAboutSupport: () -> Unit = {}
+) {
+    val settingsItems = remember {
+        listOf(
+            SettingsItem("1", "Weather Preferences", "settings"),
+            SettingsItem("2", "Emergency Contact", "phone"),
+            SettingsItem("3", "SOS Settings", "alert"),
+            SettingsItem("4", "About & Support", "info")
+        )
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        // Background image
+        AsyncImage(
+            model = R.drawable.background,
+            contentDescription = "Weather background",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+
+        // Semi-transparent overlay
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0x51515199))
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
+            // Back button
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, top = 16.dp, end = 12.dp)
+                    .clickable { onBack() },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Back arrow icon
+                Box(
+                    modifier = Modifier.size(20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val centerY = size.height / 2
+                        val centerX = size.width / 2
+                        val length = size.width / 2.5f
+
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX + length / 2, centerY - length / 2),
+                            end = Offset(centerX - length / 2, centerY),
+                            strokeWidth = 2.2f
+                        )
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX - length / 2, centerY),
+                            end = Offset(centerX + length / 2, centerY + length / 2),
+                            strokeWidth = 2.2f
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Previous",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // Settings title card
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .background(
+                        color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Settings",
+                    color = Color.White,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Settings items
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                settingsItems.forEach { item ->
+                    SettingsItemCard(
+                        item = item,
+                        onClick = {
+                            when (item.id) {
+                                "1" -> onNavigateToWeatherPreferences()
+                                "2" -> onNavigateToEmergencyContact()
+                                "3" -> onNavigateToSOSSettings()
+                                "4" -> onNavigateToAboutSupport()
+                            }
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(30.dp))
+        }
+    }
+}
+
+/**
+ * Individual settings item card
+ */
+@Composable
+fun SettingsItemCard(
+    item: SettingsItem,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .clickable { onClick() }
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Icon and title
+            Row(
+                modifier = Modifier
+                    .weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Icon box
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            color = Color.White.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    SettingsIcon(iconType = item.icon)
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // Title
+                Text(
+                    text = item.title,
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            // Arrow icon
+            Box(
+                modifier = Modifier.size(20.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val centerX = size.width / 2
+                    val centerY = size.height / 2
+                    val length = size.width / 3
+
+                    drawLine(
+                        color = Color.White,
+                        start = Offset(centerX - length / 2, centerY - length / 2),
+                        end = Offset(centerX + length / 2, centerY),
+                        strokeWidth = 2f,
+                        alpha = 0.5f
+                    )
+                    drawLine(
+                        color = Color.White,
+                        start = Offset(centerX + length / 2, centerY),
+                        end = Offset(centerX - length / 2, centerY + length / 2),
+                        strokeWidth = 2f,
+                        alpha = 0.5f
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Settings icon component - draws different icons based on type
+ */
+@Composable
+fun SettingsIcon(iconType: String) {
+    Canvas(modifier = Modifier.size(24.dp)) {
+        val centerX = size.width / 2
+        val centerY = size.height / 2
+
+        when (iconType) {
+            "settings" -> {
+                // Gear/Settings icon
+                drawCircle(
+                    color = Color.White,
+                    radius = size.width / 5,
+                    center = Offset(centerX, centerY),
+                    style = Stroke(width = 1.5f)
+                )
+                // Gear teeth
+                for (i in 0..5) {
+                    val angle = (i * 60f) * (Math.PI / 180.0)
+                    val x1 = centerX + (size.width / 3.5f * kotlin.math.cos(angle)).toFloat()
+                    val y1 = centerY + (size.width / 3.5f * kotlin.math.sin(angle)).toFloat()
+                    val x2 = centerX + (size.width / 2.2f * kotlin.math.cos(angle)).toFloat()
+                    val y2 = centerY + (size.width / 2.2f * kotlin.math.sin(angle)).toFloat()
+
+                    drawLine(
+                        color = Color.White,
+                        start = Offset(x1, y1),
+                        end = Offset(x2, y2),
+                        strokeWidth = 1.5f
+                    )
+                }
+            }
+
+            "phone" -> {
+                // Phone icon
+                drawRect(
+                    color = Color.White,
+                    topLeft = Offset(centerX - size.width / 3.5f, centerY - size.height / 2.5f),
+                    size = Size(size.width / 1.75f, size.height / 1.25f),
+                    style = Stroke(width = 1.5f)
+                )
+                drawCircle(
+                    color = Color.White,
+                    radius = 1.5f,
+                    center = Offset(centerX, centerY + size.height / 4)
+                )
+            }
+
+            "alert" -> {
+                // Triangle alert icon
+                val topX = centerX
+                val topY = centerY - size.height / 2.5f
+                val bottomLeftX = centerX - size.width / 2.5f
+                val bottomLeftY = centerY + size.height / 3
+                val bottomRightX = centerX + size.width / 2.5f
+                val bottomRightY = centerY + size.height / 3
+
+                drawLine(
+                    color = Color.White,
+                    start = Offset(topX, topY),
+                    end = Offset(bottomLeftX, bottomLeftY),
+                    strokeWidth = 1.5f
+                )
+                drawLine(
+                    color = Color.White,
+                    start = Offset(bottomLeftX, bottomLeftY),
+                    end = Offset(bottomRightX, bottomRightY),
+                    strokeWidth = 1.5f
+                )
+                drawLine(
+                    color = Color.White,
+                    start = Offset(bottomRightX, bottomRightY),
+                    end = Offset(topX, topY),
+                    strokeWidth = 1.5f
+                )
+                // Exclamation mark
+                drawCircle(
+                    color = Color.White,
+                    radius = 1.2f,
+                    center = Offset(centerX, centerY - 2.dp.toPx())
+                )
+                drawLine(
+                    color = Color.White,
+                    start = Offset(centerX, centerY + 1.dp.toPx()),
+                    end = Offset(centerX, centerY + 5.dp.toPx()),
+                    strokeWidth = 1.5f
+                )
+            }
+
+            "info" -> {
+                // Info icon (circle with 'i')
+                drawCircle(
+                    color = Color.White,
+                    radius = size.width / 2,
+                    center = Offset(centerX, centerY),
+                    style = Stroke(width = 1.5f)
+                )
+                // Dot
+                drawCircle(
+                    color = Color.White,
+                    radius = 1.2f,
+                    center = Offset(centerX, centerY - 4.dp.toPx())
+                )
+                // Line
+                drawLine(
+                    color = Color.White,
+                    start = Offset(centerX, centerY - 1.dp.toPx()),
+                    end = Offset(centerX, centerY + 5.dp.toPx()),
+                    strokeWidth = 1.5f
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Placeholder Screen for upcoming settings sub-screens
+ */
+@Composable
+fun PlaceholderScreen(
+    title: String,
     onBack: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF1B1B2F))
+            .background(Color.Black)
     ) {
+        // Background image
+        AsyncImage(
+            model = R.drawable.background,
+            contentDescription = "Weather background",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+
+        // Semi-transparent overlay
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0x51515199))
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top
+                .verticalScroll(rememberScrollState())
         ) {
+            // Back button
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 20.dp),
+                    .padding(start = 12.dp, top = 16.dp, end = 12.dp)
+                    .clickable { onBack() },
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Back arrow icon
+                Box(
+                    modifier = Modifier.size(20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val centerY = size.height / 2
+                        val centerX = size.width / 2
+                        val length = size.width / 2.5f
+
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX + length / 2, centerY - length / 2),
+                            end = Offset(centerX - length / 2, centerY),
+                            strokeWidth = 2.2f
+                        )
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX - length / 2, centerY),
+                            end = Offset(centerX + length / 2, centerY + length / 2),
+                            strokeWidth = 2.2f
+                        )
+                    }
+                }
+
                 Text(
-                    text = "← Back",
-                    modifier = Modifier
-                        .clickable { onBack() }
-                        .padding(8.dp),
+                    text = "Previous",
                     color = Color.White,
-                    fontSize = 16.sp
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 8.dp)
                 )
             }
 
-            Text(
-                text = "Settings",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                modifier = Modifier.padding(vertical = 16.dp)
-            )
+            Spacer(modifier = Modifier.height(48.dp))
 
-            Card(
+            // Title card
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF2A2A3E)
-                )
+                    .padding(horizontal = 20.dp)
+                    .background(
+                        color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Temperature Unit",
-                    fontSize = 16.sp,
+                    text = title,
                     color = Color.White,
-                    modifier = Modifier.padding(16.dp)
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
 
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF2A2A3E)
-                )
-            ) {
-                Text(
-                    text = "Notifications",
-                    fontSize = 16.sp,
-                    color = Color.White,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
+            Spacer(modifier = Modifier.height(48.dp))
 
-            Card(
+            // Coming soon message
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF2A2A3E)
-                )
+                    .padding(horizontal = 20.dp)
+                    .background(
+                        color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "About",
+                    text = "Coming Soon",
+                    color = Color.White.copy(alpha = 0.7f),
                     fontSize = 16.sp,
-                    color = Color.White,
-                    modifier = Modifier.padding(16.dp)
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }
