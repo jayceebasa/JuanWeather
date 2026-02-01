@@ -22,10 +22,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -1896,7 +1904,8 @@ fun SettingsScreen(
     onNavigateToWeatherPreferences: () -> Unit = {},
     onNavigateToEmergencyContact: () -> Unit = {},
     onNavigateToSOSSettings: () -> Unit = {},
-    onNavigateToAboutSupport: () -> Unit = {}
+    onNavigateToAboutSupport: () -> Unit = {},
+    onLogout: () -> Unit = {}
 ) {
     val settingsItems = remember {
         listOf(
@@ -2018,6 +2027,29 @@ fun SettingsScreen(
                         }
                     )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(30.dp))
+
+            // Logout button
+            Button(
+                onClick = onLogout,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .height(48.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFBA1E1E),
+                    disabledContainerColor = Color.Gray
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = "Logout",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
 
             Spacer(modifier = Modifier.height(30.dp))
@@ -2673,6 +2705,217 @@ fun PreferenceSliderItem(
                     fontSize = 11.sp
                 )
             }
+        }
+    }
+}
+
+
+/**
+ * Login Screen Composable
+ * Simple login page with username and password fields
+ * Credentials: username = juan23, password = juan23
+ */
+@Composable
+fun LoginScreen(
+    onLoginSuccess: () -> Unit
+) {
+    val username = remember { mutableStateOf("") }
+    val password = remember { mutableStateOf("") }
+    val showPassword = remember { mutableStateOf(false) }
+    val showError = remember { mutableStateOf(false) }
+    val errorMessage = remember { mutableStateOf("") }
+
+    val correctUsername = "juan23"
+    val correctPassword = "juan23"
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        // Background image
+        AsyncImage(
+            model = R.drawable.background,
+            contentDescription = "Login background",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+
+        // Semi-transparent overlay
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0x51515199))
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Title
+            Box(
+                modifier = Modifier
+                    .background(
+                        color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Juan Weather",
+                    color = Color.White,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            // Login Card
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .background(
+                        color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .padding(24.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Login",
+                        color = Color.White,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Username Field
+                    TextField(
+                        value = username.value,
+                        onValueChange = { username.value = it; showError.value = false },
+                        label = { Text("Username", color = Color.White.copy(alpha = 0.7f)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.White.copy(alpha = 0.1f),
+                            unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedLabelColor = Color.White.copy(alpha = 0.7f),
+                            unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
+                            focusedIndicatorColor = Color(0xFF81C784),
+                            unfocusedIndicatorColor = Color.White.copy(alpha = 0.3f)
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Password Field
+                    TextField(
+                        value = password.value,
+                        onValueChange = { password.value = it; showError.value = false },
+                        label = { Text("Password", color = Color.White.copy(alpha = 0.7f)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        visualTransformation = if (showPassword.value) {
+                            androidx.compose.ui.text.input.VisualTransformation.None
+                        } else {
+                            androidx.compose.ui.text.input.PasswordVisualTransformation()
+                        },
+                        trailingIcon = {
+                            Box(
+                                modifier = Modifier
+                                    .clickable { showPassword.value = !showPassword.value }
+                                    .padding(8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (showPassword.value) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                    contentDescription = if (showPassword.value) "Hide password" else "Show password",
+                                    tint = Color.White.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.White.copy(alpha = 0.1f),
+                            unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedLabelColor = Color.White.copy(alpha = 0.7f),
+                            unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
+                            focusedIndicatorColor = Color(0xFF81C784),
+                            unfocusedIndicatorColor = Color.White.copy(alpha = 0.3f)
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Error message
+                    if (showError.value) {
+                        Text(
+                            text = errorMessage.value,
+                            color = Color(0xFFEF5350),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
+                    // Login Button
+                    Button(
+                        onClick = {
+                            if (username.value == correctUsername && password.value == correctPassword) {
+                                onLoginSuccess()
+                            } else {
+                                showError.value = true
+                                errorMessage.value = "Invalid username or password"
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF81C784),
+                            disabledContainerColor = Color.Gray
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "Login",
+                            color = Color.Black,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            // Helper text
+            Text(
+                text = "Demo Credentials:\nUsername: juan23\nPassword: juan23",
+                color = Color.White.copy(alpha = 0.6f),
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 20.dp)
+            )
         }
     }
 }

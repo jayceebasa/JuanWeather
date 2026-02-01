@@ -6,6 +6,7 @@ import androidx.compose.runtime.remember
 import com.juanweather.ui.screens.AddLocationScreen
 import com.juanweather.ui.screens.AboutSupportScreen
 import com.juanweather.ui.screens.EmergencyContactScreen
+import com.juanweather.ui.screens.LoginScreen
 import com.juanweather.ui.screens.PlaceholderScreen
 import com.juanweather.ui.screens.SettingsScreen
 import com.juanweather.ui.screens.SOSSettingsScreen
@@ -16,6 +17,7 @@ import com.juanweather.ui.screens.WeatherPreferencesScreen
  * Enumeration for different app screens
  */
 enum class AppScreen {
+    Login,
     Dashboard,
     AddLocation,
     Settings,
@@ -30,7 +32,7 @@ enum class AppScreen {
  * Supports forward navigation (push) and backward navigation (pop)
  */
 class NavigationController {
-    private var backStack = mutableListOf(AppScreen.Dashboard)
+    private var backStack = mutableListOf(AppScreen.Login)
 
     fun navigate(screen: AppScreen) {
         backStack.add(screen)
@@ -42,8 +44,13 @@ class NavigationController {
         }
     }
 
+    fun logout() {
+        backStack.clear()
+        backStack.add(AppScreen.Login)
+    }
+
     fun getCurrentScreen(): AppScreen {
-        return backStack.lastOrNull() ?: AppScreen.Dashboard
+        return backStack.lastOrNull() ?: AppScreen.Login
     }
 
     fun getBackStackState(): List<AppScreen> {
@@ -59,9 +66,18 @@ class NavigationController {
 @Composable
 fun WeatherApp() {
     val navigationController = remember { NavigationController() }
-    val currentScreen = remember { mutableStateOf(AppScreen.Dashboard) }
+    val currentScreen = remember { mutableStateOf(AppScreen.Login) }
 
     when (currentScreen.value) {
+        AppScreen.Login -> {
+            LoginScreen(
+                onLoginSuccess = {
+                    navigationController.navigate(AppScreen.Dashboard)
+                    currentScreen.value = AppScreen.Dashboard
+                }
+            )
+        }
+
         AppScreen.Dashboard -> {
             WeatherDashboardScreen(
                 onNavigateToAddLocation = {
@@ -88,6 +104,10 @@ fun WeatherApp() {
             SettingsScreen(
                 onBack = {
                     navigationController.navigateBack()
+                    currentScreen.value = navigationController.getCurrentScreen()
+                },
+                onLogout = {
+                    navigationController.logout()
                     currentScreen.value = navigationController.getCurrentScreen()
                 },
                 onNavigateToWeatherPreferences = {
