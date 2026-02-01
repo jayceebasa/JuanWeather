@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">JuanWeather</string>
+    <string name="home">Home</string>
+    <string name="emergency">Emergency</string>
+    <string name="settings">Settings</string>
+    <string name="temperature">Temperature</string>
+    <string name="humidity">Humidity</string>
+    <string name="wind_speed">Wind Speed</string>
+    <string name="add_contact">Add Contact</string>
+    <string name="sos">SOS</string>
+    <string name="call">Call</string>
+    <string-array name="temp_units">
+        <item>Celsius</item>
+        <item>Fahrenheit</item>
+    </string-array>
+</resources>

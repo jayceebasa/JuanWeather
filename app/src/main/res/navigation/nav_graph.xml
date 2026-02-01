@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/home_fragment">
+
+    <fragment
+        android:id="@+id/home_fragment"
+        android:name="com.juanweather.ui.fragments.HomeFragment"
+        android:label="Weather" />
+
+    <fragment
+        android:id="@+id/emergency_contacts_fragment"
+        android:name="com.juanweather.ui.fragments.EmergencyContactsFragment"
+        android:label="Emergency Contacts" />
+
+    <fragment
+        android:id="@+id/settings_fragment"
+        android:name="com.juanweather.ui.fragments.SettingsFragment"
+        android:label="Settings" />
+
+</navigation>
