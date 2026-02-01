@@ -348,7 +348,7 @@ fun WeatherDashboardScreen(
                         Card(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(280.dp),
+                                .height(200.dp),
                             shape = RoundedCornerShape(24.dp),
                             colors = CardDefaults.cardColors(
                                 containerColor = Color(0xFF1B1B1B).copy(alpha = 0.77f)
@@ -389,7 +389,7 @@ fun WeatherDashboardScreen(
                         Card(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(280.dp),
+                                .height(200.dp),
                             shape = RoundedCornerShape(24.dp),
                             colors = CardDefaults.cardColors(
                                 containerColor = Color(0xFF1B1B1B).copy(alpha = 0.77f)
