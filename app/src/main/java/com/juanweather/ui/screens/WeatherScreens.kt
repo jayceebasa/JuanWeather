@@ -458,6 +458,280 @@ fun WeatherDashboardScreen(
     }
 }
 
+/**
+ * Emergency Contact data model
+ */
+data class EmergencyContactItem(
+    val id: String,
+    val name: String,
+    val phone: String
+)
+
+/**
+ * Emergency Contact Screen
+ */
+@Composable
+fun EmergencyContactScreen(
+    onBack: () -> Unit
+) {
+    val contacts = remember {
+        listOf(
+            EmergencyContactItem("1", "Mj Bautista", "09165543123"),
+            EmergencyContactItem("2", "Juan Carlos Basa", "09165543123"),
+            EmergencyContactItem("3", "Charles Medel", "09165543123"),
+            EmergencyContactItem("4", "Frances Balgos", "09165543123")
+        )
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        AsyncImage(
+            model = R.drawable.background,
+            contentDescription = "Weather background",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0x51515199))
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, top = 16.dp, end = 12.dp)
+                    .clickable { onBack() },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier.size(20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val centerY = size.height / 2
+                        val centerX = size.width / 2
+                        val length = size.width / 2.5f
+
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX + length / 2, centerY - length / 2),
+                            end = Offset(centerX - length / 2, centerY),
+                            strokeWidth = 2.2f
+                        )
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX - length / 2, centerY),
+                            end = Offset(centerX + length / 2, centerY + length / 2),
+                            strokeWidth = 2.2f
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Previous",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .background(
+                        color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Emergency Contact",
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                contacts.forEach { contact ->
+                    ContactItemCard(contact)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        drawCircle(
+                            color = Color(0xFFB0BEC5),
+                            radius = size.width / 2,
+                            alpha = 0.5f
+                        )
+                        val centerX = size.width / 2
+                        val centerY = size.height / 2
+                        val len = size.width / 4
+
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX, centerY - len),
+                            end = Offset(centerX, centerY + len),
+                            strokeWidth = 2.5f
+                        )
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX - len, centerY),
+                            end = Offset(centerX + len, centerY),
+                            strokeWidth = 2.5f
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "ADD CONTACT",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(30.dp))
+        }
+    }
+}
+
+/**
+ * Individual contact card
+ */
+@Composable
+fun ContactItemCard(contact: EmergencyContactItem) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .clickable { }
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = contact.name,
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(start = 16.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(
+                            color = Color.White.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(8.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.size(16.dp)) {
+                        val centerX = size.width / 2
+                        val centerY = size.height / 2
+                        val phoneWidth = size.width / 2.5f
+                        val phoneHeight = size.height / 1.5f
+
+                        drawRect(
+                            color = Color.White,
+                            topLeft = Offset(centerX - phoneWidth / 2, centerY - phoneHeight / 2),
+                            size = Size(phoneWidth, phoneHeight),
+                            style = Stroke(width = 1.2f)
+                        )
+                        drawCircle(
+                            color = Color.White,
+                            radius = 0.8f,
+                            center = Offset(centerX, centerY + phoneHeight / 3)
+                        )
+                    }
+                }
+
+                Text(
+                    text = contact.phone,
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 12.sp
+                )
+
+                Box(
+                    modifier = Modifier.size(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val centerX = size.width / 2
+                        val centerY = size.height / 2
+                        val length = size.width / 2.5f
+
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX - length / 2, centerY - length / 2.5f),
+                            end = Offset(centerX + length / 2, centerY),
+                            strokeWidth = 1.5f,
+                            alpha = 0.5f
+                        )
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX + length / 2, centerY),
+                            end = Offset(centerX - length / 2, centerY + length / 2.5f),
+                            strokeWidth = 1.5f,
+                            alpha = 0.5f
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun SosSuccessDialog(
     onDismiss: () -> Unit

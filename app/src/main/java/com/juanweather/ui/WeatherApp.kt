@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import com.juanweather.ui.screens.AddLocationScreen
+import com.juanweather.ui.screens.EmergencyContactScreen
 import com.juanweather.ui.screens.PlaceholderScreen
 import com.juanweather.ui.screens.SettingsScreen
 import com.juanweather.ui.screens.WeatherDashboardScreen
@@ -117,9 +118,7 @@ fun WeatherApp() {
         }
 
         AppScreen.EmergencyContact -> {
-            // Placeholder for Emergency Contact screen
-            PlaceholderScreen(
-                title = "Emergency Contact",
+            EmergencyContactScreen(
                 onBack = {
                     navigationController.navigateBack()
                     currentScreen.value = navigationController.getCurrentScreen()
