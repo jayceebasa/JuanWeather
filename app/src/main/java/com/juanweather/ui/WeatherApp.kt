@@ -4,9 +4,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import com.juanweather.ui.screens.AddLocationScreen
+import com.juanweather.ui.screens.AboutSupportScreen
 import com.juanweather.ui.screens.EmergencyContactScreen
 import com.juanweather.ui.screens.PlaceholderScreen
 import com.juanweather.ui.screens.SettingsScreen
+import com.juanweather.ui.screens.SOSSettingsScreen
 import com.juanweather.ui.screens.WeatherDashboardScreen
 import com.juanweather.ui.screens.WeatherPreferencesScreen
 
@@ -127,9 +129,7 @@ fun WeatherApp() {
         }
 
         AppScreen.SOSSettings -> {
-            // Placeholder for SOS Settings screen
-            PlaceholderScreen(
-                title = "SOS Settings",
+            SOSSettingsScreen(
                 onBack = {
                     navigationController.navigateBack()
                     currentScreen.value = navigationController.getCurrentScreen()
@@ -138,9 +138,7 @@ fun WeatherApp() {
         }
 
         AppScreen.AboutSupport -> {
-            // Placeholder for About & Support screen
-            PlaceholderScreen(
-                title = "About & Support",
+            AboutSupportScreen(
                 onBack = {
                     navigationController.navigateBack()
                     currentScreen.value = navigationController.getCurrentScreen()

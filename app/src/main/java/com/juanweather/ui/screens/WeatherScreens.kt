@@ -732,6 +732,749 @@ fun ContactItemCard(contact: EmergencyContactItem) {
     }
 }
 
+/**
+ * SOS Settings Screen
+ */
+@Composable
+fun SOSSettingsScreen(
+    onBack: () -> Unit
+) {
+    val toggleLocation = remember { mutableStateOf(true) }
+    val messageTemplate = remember { mutableStateOf("My name is...") }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        AsyncImage(
+            model = R.drawable.background,
+            contentDescription = "Weather background",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0x51515199))
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, top = 16.dp, end = 12.dp)
+                    .clickable { onBack() },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier.size(20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val centerY = size.height / 2
+                        val centerX = size.width / 2
+                        val length = size.width / 2.5f
+
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX + length / 2, centerY - length / 2),
+                            end = Offset(centerX - length / 2, centerY),
+                            strokeWidth = 2.2f
+                        )
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX - length / 2, centerY),
+                            end = Offset(centerX + length / 2, centerY + length / 2),
+                            strokeWidth = 2.2f
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Previous",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .background(
+                        color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "SOS Settings",
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Toggle Location
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Toggle location",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Switch(
+                            checked = toggleLocation.value,
+                            onCheckedChange = { toggleLocation.value = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color(0xFF4CAF50),
+                                checkedTrackColor = Color(0xFF81C784),
+                                uncheckedThumbColor = Color(0xFFF4F3F4),
+                                uncheckedTrackColor = Color(0xFF767577)
+                            ),
+                            modifier = Modifier.padding(start = 12.dp)
+                        )
+                    }
+                }
+
+                // Message Template Display
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Message Template",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    color = Color.Black.copy(alpha = 0.2f),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = messageTemplate.value,
+                                color = Color.White.copy(alpha = 0.6f),
+                                fontSize = 12.sp,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+
+                // Message Input
+                androidx.compose.material3.TextField(
+                    value = messageTemplate.value,
+                    onValueChange = { messageTemplate.value = it },
+                    placeholder = {
+                        Text(
+                            "Enter message template",
+                            color = Color.White.copy(alpha = 0.4f),
+                            fontSize = 14.sp
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                            shape = RoundedCornerShape(12.dp)
+                        ),
+                    colors = androidx.compose.material3.TextFieldDefaults.colors(
+                        focusedContainerColor = Color(0x2F2E2E).copy(alpha = 0.68f),
+                        unfocusedContainerColor = Color(0x2F2E2E).copy(alpha = 0.68f),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = Color.White
+                    ),
+                    singleLine = true
+                )
+
+                // Send Text SOS Button
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = Color(0xFFBA1E1E).copy(alpha = 0.79f),
+                            shape = RoundedCornerShape(14.dp)
+                        )
+                        .clickable { }
+                        .padding(vertical = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Send Text SOS",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(30.dp))
+        }
+    }
+}
+
+/**
+ * About & Support Screen
+ */
+@Composable
+fun AboutSupportScreen(
+    onBack: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        AsyncImage(
+            model = R.drawable.background,
+            contentDescription = "Weather background",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0x51515199))
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, top = 16.dp, end = 12.dp)
+                    .clickable { onBack() },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier.size(20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val centerY = size.height / 2
+                        val centerX = size.width / 2
+                        val length = size.width / 2.5f
+
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX + length / 2, centerY - length / 2),
+                            end = Offset(centerX - length / 2, centerY),
+                            strokeWidth = 2.2f
+                        )
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX - length / 2, centerY),
+                            end = Offset(centerX + length / 2, centerY + length / 2),
+                            strokeWidth = 2.2f
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Previous",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .background(
+                        color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "About & Support",
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                // About Section
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.padding(start = 4.dp)
+                    ) {
+                        Canvas(modifier = Modifier.size(24.dp)) {
+                            drawCircle(
+                                color = Color.White,
+                                radius = size.width / 2,
+                                style = Stroke(width = 2f)
+                            )
+                            drawCircle(
+                                color = Color.White,
+                                radius = 1.5f,
+                                center = Offset(size.width / 2, size.height / 2.5f)
+                            )
+                            drawLine(
+                                color = Color.White,
+                                start = Offset(size.width / 2, size.height / 2.5f + 1.5f),
+                                end = Offset(size.width / 2, size.height * 0.65f),
+                                strokeWidth = 1.5f
+                            )
+                        }
+
+                        Text(
+                            text = "About JuanWeather",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .padding(16.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "App Version",
+                                color = Color.White.copy(alpha = 0.6f),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = "1.0.0",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .padding(16.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Build Number",
+                                color = Color.White.copy(alpha = 0.6f),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = "2024.01.001",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .padding(16.dp)
+                    ) {
+                        Text(
+                            text = "JuanWeather is your personal weather companion, providing real-time weather updates, emergency alerts, and location-based weather information to keep you safe and informed.",
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 13.sp,
+                            lineHeight = 20.sp
+                        )
+                    }
+                }
+
+                // Support Section
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.padding(start = 4.dp)
+                    ) {
+                        Canvas(modifier = Modifier.size(24.dp)) {
+                            drawRect(
+                                color = Color.White,
+                                topLeft = Offset(size.width / 4, size.height / 3),
+                                size = Size(size.width / 2, size.height / 3),
+                                style = Stroke(width = 1.5f)
+                            )
+                        }
+
+                        Text(
+                            text = "Get Support",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .clickable { }
+                            .padding(16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .background(
+                                            color = Color(0xFF81C784).copy(alpha = 0.15f),
+                                            shape = RoundedCornerShape(10.dp)
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Canvas(modifier = Modifier.size(20.dp)) {
+                                        drawRect(
+                                            color = Color.White,
+                                            topLeft = Offset(size.width / 5, size.height / 3),
+                                            size = Size(size.width * 0.6f, size.height / 3),
+                                            style = Stroke(width = 1.5f)
+                                        )
+                                    }
+                                }
+
+                                Column {
+                                    Text(
+                                        text = "Email Support",
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "support@juanweather.com",
+                                        color = Color.White.copy(alpha = 0.5f),
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+
+                            Canvas(modifier = Modifier.size(20.dp)) {
+                                val centerX = size.width / 2
+                                val centerY = size.height / 2
+                                val length = size.width / 3
+
+                                drawLine(
+                                    color = Color(0xFF81C784),
+                                    start = Offset(centerX - length / 2, centerY - length / 2.5f),
+                                    end = Offset(centerX + length / 2, centerY),
+                                    strokeWidth = 2f
+                                )
+                                drawLine(
+                                    color = Color(0xFF81C784),
+                                    start = Offset(centerX + length / 2, centerY),
+                                    end = Offset(centerX - length / 2, centerY + length / 2.5f),
+                                    strokeWidth = 2f
+                                )
+                            }
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .clickable { }
+                            .padding(16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .background(
+                                            color = Color(0xFF81C784).copy(alpha = 0.15f),
+                                            shape = RoundedCornerShape(10.dp)
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Canvas(modifier = Modifier.size(20.dp)) {
+                                        drawRect(
+                                            color = Color.White,
+                                            topLeft = Offset(size.width / 3.5f, size.height / 4),
+                                            size = Size(size.width / 3.5f, size.height / 2),
+                                            style = Stroke(width = 1.5f)
+                                        )
+                                    }
+                                }
+
+                                Column {
+                                    Text(
+                                        text = "Phone Support",
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "+1 (234) 567-890",
+                                        color = Color.White.copy(alpha = 0.5f),
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+
+                            Canvas(modifier = Modifier.size(20.dp)) {
+                                val centerX = size.width / 2
+                                val centerY = size.height / 2
+                                val length = size.width / 3
+
+                                drawLine(
+                                    color = Color(0xFF81C784),
+                                    start = Offset(centerX - length / 2, centerY - length / 2.5f),
+                                    end = Offset(centerX + length / 2, centerY),
+                                    strokeWidth = 2f
+                                )
+                                drawLine(
+                                    color = Color(0xFF81C784),
+                                    start = Offset(centerX + length / 2, centerY),
+                                    end = Offset(centerX - length / 2, centerY + length / 2.5f),
+                                    strokeWidth = 2f
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Legal Section
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.padding(start = 4.dp)
+                    ) {
+                        Canvas(modifier = Modifier.size(24.dp)) {
+                            drawCircle(
+                                color = Color.White,
+                                radius = size.width / 2,
+                                style = Stroke(width = 2f)
+                            )
+                            drawCircle(
+                                color = Color.White,
+                                radius = 1.5f,
+                                center = Offset(size.width / 2, size.height / 2.5f)
+                            )
+                            drawLine(
+                                color = Color.White,
+                                start = Offset(size.width / 2, size.height / 2.5f + 1.5f),
+                                end = Offset(size.width / 2, size.height * 0.65f),
+                                strokeWidth = 1.5f
+                            )
+                        }
+
+                        Text(
+                            text = "Legal",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .clickable { }
+                            .padding(16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Privacy Policy",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+
+                            Canvas(modifier = Modifier.size(16.dp)) {
+                                val centerX = size.width / 2
+                                val centerY = size.height / 2
+                                val length = size.width / 2.5f
+
+                                drawLine(
+                                    color = Color.White.copy(alpha = 0.5f),
+                                    start = Offset(centerX - length / 2, centerY - length / 2.5f),
+                                    end = Offset(centerX + length / 2, centerY),
+                                    strokeWidth = 1.5f
+                                )
+                                drawLine(
+                                    color = Color.White.copy(alpha = 0.5f),
+                                    start = Offset(centerX + length / 2, centerY),
+                                    end = Offset(centerX - length / 2, centerY + length / 2.5f),
+                                    strokeWidth = 1.5f
+                                )
+                            }
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .clickable { }
+                            .padding(16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Terms of Service",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+
+                            Canvas(modifier = Modifier.size(16.dp)) {
+                                val centerX = size.width / 2
+                                val centerY = size.height / 2
+                                val length = size.width / 2.5f
+
+                                drawLine(
+                                    color = Color.White.copy(alpha = 0.5f),
+                                    start = Offset(centerX - length / 2, centerY - length / 2.5f),
+                                    end = Offset(centerX + length / 2, centerY),
+                                    strokeWidth = 1.5f
+                                )
+                                drawLine(
+                                    color = Color.White.copy(alpha = 0.5f),
+                                    start = Offset(centerX + length / 2, centerY),
+                                    end = Offset(centerX - length / 2, centerY + length / 2.5f),
+                                    strokeWidth = 1.5f
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Text(
+                    text = "© 2024 JuanWeather. All rights reserved.",
+                    color = Color.White.copy(alpha = 0.4f),
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 24.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(30.dp))
+        }
+    }
+}
+
 @Composable
 fun SosSuccessDialog(
     onDismiss: () -> Unit
