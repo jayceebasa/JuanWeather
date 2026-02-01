@@ -1,1 +1,12 @@
 /build
+/captures
+.externalNativeBuild
+.cxx
+*.apk
+*.ap_
+*.dex
+*.class
+.DS_Store
+*.jks
+*.keystore
+
