@@ -28,7 +28,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -37,13 +41,16 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.juanweather.R
+import com.juanweather.ui.components.CloudIcon
 import com.juanweather.ui.components.CloudRainIcon
 import com.juanweather.ui.components.SettingsIcon
+import com.juanweather.ui.components.SunIcon
 import com.juanweather.ui.components.WeatherIcon
 import com.juanweather.ui.models.DailyForecastItem
 import com.juanweather.ui.models.HourlyForecastItem
 import com.juanweather.ui.models.Metric
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.Canvas
 
 /**
  * Main weather dashboard screen composable
@@ -508,55 +515,345 @@ fun SosSuccessDialog(
 }
 
 /**
+ * Location weather data model
+ */
+data class LocationWeather(
+    val id: String,
+    val city: String,
+    val temp: Int,
+    val condition: String,
+    val highTemp: Int,
+    val icon: String
+)
+
+/**
  * Add Location Screen
  */
 @Composable
 fun AddLocationScreen(
     onBack: () -> Unit
 ) {
+    val locations = remember {
+        listOf(
+            LocationWeather(
+                id = "1",
+                city = "Imus",
+                temp = 19,
+                condition = "Mostly Clear",
+                highTemp = 24,
+                icon = "sun"
+            ),
+            LocationWeather(
+                id = "2",
+                city = "Manila",
+                temp = 26,
+                condition = "Light Rain",
+                highTemp = 29,
+                icon = "rain"
+            ),
+            LocationWeather(
+                id = "3",
+                city = "Tagaytay",
+                temp = 22,
+                condition = "Cloudy",
+                highTemp = 25,
+                icon = "cloud"
+            )
+        )
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF1B1B2F))
+            .background(Color.Black)
     ) {
+        // Background image
+        AsyncImage(
+            model = R.drawable.background,
+            contentDescription = "Weather background",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+
+        // Semi-transparent overlay
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0x51515199))
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .verticalScroll(rememberScrollState())
         ) {
+            // Back button
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 20.dp),
+                    .padding(start = 12.dp, top = 16.dp, end = 12.dp)
+                    .clickable { onBack() },
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "← Back",
+                // Back arrow icon
+                Box(
                     modifier = Modifier
-                        .clickable { onBack() }
-                        .padding(8.dp),
+                        .size(20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        // Draw left arrow
+                        val centerY = size.height / 2
+                        val centerX = size.width / 2
+                        val length = size.width / 2.5f
+
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX + length / 2, centerY - length / 2),
+                            end = Offset(centerX - length / 2, centerY),
+                            strokeWidth = 2.2f
+                        )
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX - length / 2, centerY),
+                            end = Offset(centerX + length / 2, centerY + length / 2),
+                            strokeWidth = 2.2f
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Previous",
                     color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // Location cards
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                locations.forEach { location ->
+                    LocationWeatherCard(location)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Add Location button
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        // Draw circle background
+                        drawCircle(
+                            color = Color(0xFFB0BEC5),
+                            radius = size.width / 2,
+                            alpha = 0.5f
+                        )
+                        // Draw plus sign
+                        val centerX = size.width / 2
+                        val centerY = size.height / 2
+                        val len = size.width / 4
+
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX, centerY - len),
+                            end = Offset(centerX, centerY + len),
+                            strokeWidth = 2.5f
+                        )
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(centerX - len, centerY),
+                            end = Offset(centerX + len, centerY),
+                            strokeWidth = 2.5f
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "ADD LOCATION",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(30.dp))
+        }
+    }
+}
+
+/**
+ * Location Weather Card Component
+ */
+@Composable
+fun LocationWeatherCard(location: LocationWeather) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                shape = RoundedCornerShape(20.dp)
+            )
+            .padding(18.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Weather icon
+            Box(
+                modifier = Modifier
+                    .size(100.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                WeatherIconLarge(iconType = location.icon)
+            }
+
+            // Content section (city, temp, condition, high temp)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 16.dp, end = 64.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = location.city,
+                    color = Color.White,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Text(
+                    text = "${location.temp}°",
+                    color = Color.White,
+                    fontSize = 80.sp,
+                    fontWeight = FontWeight.Thin,
+                    lineHeight = 85.sp
+                )
+
+                Text(
+                    text = location.condition,
+                    color = Color.White.copy(alpha = 0.75f),
+                    fontSize = 16.sp
+                )
+
+                Text(
+                    text = "H:${location.highTemp}°",
+                    color = Color.White.copy(alpha = 0.7f),
                     fontSize = 16.sp
                 )
             }
 
-            Text(
-                text = "Add Location",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
+            // Delete button
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clickable { },
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .alpha(0.6f)
+                ) {
+                    val centerX = size.width / 2
+                    val centerY = size.height / 2
+                    val inset = size.width / 6
 
-            Text(
-                text = "Search and add a new location to track weather",
-                fontSize = 14.sp,
-                color = Color.White.copy(alpha = 0.6f),
-                textAlign = TextAlign.Center
-            )
+                    // Draw trash can icon
+                    // Top handle
+                    drawLine(
+                        color = Color.White,
+                        start = Offset(centerX - inset * 1.2f, centerY - inset * 1.2f),
+                        end = Offset(centerX + inset * 1.2f, centerY - inset * 1.2f),
+                        strokeWidth = 1.5f
+                    )
+                    // Top line
+                    drawLine(
+                        color = Color.White,
+                        start = Offset(centerX - inset * 1.2f, centerY - inset * 0.8f),
+                        end = Offset(centerX + inset * 1.2f, centerY - inset * 0.8f),
+                        strokeWidth = 1.5f
+                    )
+                    // Body outline
+                    drawRect(
+                        color = Color.White,
+                        topLeft = Offset(centerX - inset, centerY - inset * 0.5f),
+                        size = Size(inset * 2, inset * 1.8f),
+                        style = Stroke(width = 1.5f)
+                    )
+                    // Vertical lines in body
+                    drawLine(
+                        color = Color.White,
+                        start = Offset(centerX - inset * 0.5f, centerY - inset * 0.5f),
+                        end = Offset(centerX - inset * 0.5f, centerY + inset * 0.9f),
+                        strokeWidth = 1.5f
+                    )
+                    drawLine(
+                        color = Color.White,
+                        start = Offset(centerX, centerY - inset * 0.5f),
+                        end = Offset(centerX, centerY + inset * 0.9f),
+                        strokeWidth = 1.5f
+                    )
+                    drawLine(
+                        color = Color.White,
+                        start = Offset(centerX + inset * 0.5f, centerY - inset * 0.5f),
+                        end = Offset(centerX + inset * 0.5f, centerY + inset * 0.9f),
+                        strokeWidth = 1.5f
+                    )
+                }
+            }
         }
+    }
+}
+
+/**
+ * Large weather icon component
+ */
+@Composable
+fun WeatherIconLarge(iconType: String) {
+    when (iconType) {
+        "sun" -> SunIcon(
+            modifier = Modifier.size(100.dp),
+            color = Color(0xFFFCD34D)
+        )
+
+        "cloud" -> CloudIcon(
+            modifier = Modifier.size(100.dp),
+            color = Color(0xFFE5E7EB)
+        )
+
+        "rain" -> CloudRainIcon(
+            modifier = Modifier.size(100.dp),
+            color = Color(0xFF93C5FD)
+        )
+
+        else -> SunIcon(
+            modifier = Modifier.size(100.dp),
+            color = Color(0xFFFCD34D)
+        )
     }
 }
 

@@ -17,30 +17,70 @@ enum class AppScreen {
 }
 
 /**
+ * Navigation controller that manages a backstack of screens
+ * Supports forward navigation (push) and backward navigation (pop)
+ */
+class NavigationController {
+    private var backStack = mutableListOf(AppScreen.Dashboard)
+
+    fun navigate(screen: AppScreen) {
+        backStack.add(screen)
+    }
+
+    fun navigateBack() {
+        if (backStack.size > 1) {
+            backStack.removeAt(backStack.size - 1)
+        }
+    }
+
+    fun getCurrentScreen(): AppScreen {
+        return backStack.lastOrNull() ?: AppScreen.Dashboard
+    }
+
+    fun getBackStackState(): List<AppScreen> {
+        return backStack.toList()
+    }
+}
+
+/**
  * Main app navigation composable
  * Handles navigation between Dashboard, AddLocation, and Settings screens
+ * using a two-way backstack system
  */
 @Composable
 fun WeatherApp() {
+    val navigationController = remember { NavigationController() }
     val currentScreen = remember { mutableStateOf(AppScreen.Dashboard) }
 
     when (currentScreen.value) {
         AppScreen.Dashboard -> {
             WeatherDashboardScreen(
-                onNavigateToAddLocation = { currentScreen.value = AppScreen.AddLocation },
-                onNavigateToSettings = { currentScreen.value = AppScreen.Settings }
+                onNavigateToAddLocation = {
+                    navigationController.navigate(AppScreen.AddLocation)
+                    currentScreen.value = AppScreen.AddLocation
+                },
+                onNavigateToSettings = {
+                    navigationController.navigate(AppScreen.Settings)
+                    currentScreen.value = AppScreen.Settings
+                }
             )
         }
 
         AppScreen.AddLocation -> {
             AddLocationScreen(
-                onBack = { currentScreen.value = AppScreen.Dashboard }
+                onBack = {
+                    navigationController.navigateBack()
+                    currentScreen.value = navigationController.getCurrentScreen()
+                }
             )
         }
 
         AppScreen.Settings -> {
             SettingsScreen(
-                onBack = { currentScreen.value = AppScreen.Dashboard }
+                onBack = {
+                    navigationController.navigateBack()
+                    currentScreen.value = navigationController.getCurrentScreen()
+                }
             )
         }
     }
