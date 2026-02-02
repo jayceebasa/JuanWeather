@@ -2724,9 +2724,16 @@ fun LoginScreen(
     val showPassword = remember { mutableStateOf(false) }
     val showError = remember { mutableStateOf(false) }
     val errorMessage = remember { mutableStateOf("") }
+    val emailError = remember { mutableStateOf(false) }
 
-    val correctUsername = "juan23"
+    val correctUsername = "juan23@gmail.com"
     val correctPassword = "juan23"
+
+    // Email validation regex
+    fun isValidEmail(email: String): Boolean {
+        val emailPattern = "^[A-Za-z0-9+_.-]+@(.+)$"
+        return email.matches(emailPattern.toRegex()) && email.contains("@") && email.contains(".")
+    }
 
     Box(
         modifier = Modifier
@@ -2801,11 +2808,16 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Username Field
+                    // Email Field
                     TextField(
                         value = username.value,
-                        onValueChange = { username.value = it; showError.value = false },
-                        label = { Text("Username", color = Color.White.copy(alpha = 0.7f)) },
+                        onValueChange = {
+                            username.value = it
+                            showError.value = false
+                            // Validate email in real-time
+                            emailError.value = username.value.isNotEmpty() && !isValidEmail(username.value)
+                        },
+                        label = { Text("Email", color = Color.White.copy(alpha = 0.7f)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         colors = TextFieldDefaults.colors(
@@ -2815,10 +2827,24 @@ fun LoginScreen(
                             unfocusedTextColor = Color.White,
                             focusedLabelColor = Color.White.copy(alpha = 0.7f),
                             unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
-                            focusedIndicatorColor = Color(0xFF81C784),
-                            unfocusedIndicatorColor = Color.White.copy(alpha = 0.3f)
+                            focusedIndicatorColor = if (emailError.value) Color(0xFFEF5350) else Color(0xFF81C784),
+                            unfocusedIndicatorColor = if (emailError.value) Color(0xFFEF5350) else Color.White.copy(alpha = 0.3f)
                         )
                     )
+
+                    // Email validation error
+                    if (emailError.value) {
+                        Text(
+                            text = "Please enter a valid email address",
+                            color = Color(0xFFEF5350),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                            textAlign = TextAlign.Start
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -2880,11 +2906,26 @@ fun LoginScreen(
                     // Login Button
                     Button(
                         onClick = {
-                            if (username.value == correctUsername && password.value == correctPassword) {
-                                onLoginSuccess()
-                            } else {
-                                showError.value = true
-                                errorMessage.value = "Invalid username or password"
+                            when {
+                                username.value.isEmpty() -> {
+                                    showError.value = true
+                                    errorMessage.value = "Email is required"
+                                }
+                                !isValidEmail(username.value) -> {
+                                    showError.value = true
+                                    errorMessage.value = "Please enter a valid email address"
+                                }
+                                password.value.isEmpty() -> {
+                                    showError.value = true
+                                    errorMessage.value = "Password is required"
+                                }
+                                username.value == correctUsername && password.value == correctPassword -> {
+                                    onLoginSuccess()
+                                }
+                                else -> {
+                                    showError.value = true
+                                    errorMessage.value = "Invalid email or password"
+                                }
                             }
                         },
                         modifier = Modifier
@@ -2910,7 +2951,7 @@ fun LoginScreen(
 
             // Helper text
             Text(
-                text = "Demo Credentials:\nUsername: juan23\nPassword: juan23",
+                text = "Demo Credentials:\nEmail: juan23@gmail.com\nPassword: juan23",
                 color = Color.White.copy(alpha = 0.6f),
                 fontSize = 12.sp,
                 textAlign = TextAlign.Center,
