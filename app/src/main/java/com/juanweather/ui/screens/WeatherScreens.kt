@@ -117,11 +117,14 @@ fun WeatherDashboardScreen(
         Metric("PRESSURE",   "1008mbar")
     )
 
-    val currentCity = weatherViewModel?.currentCity?.collectAsState()?.value ?: "Imus, Cavite"
+    val currentCity  = weatherViewModel?.currentCity?.collectAsState()?.value  ?: ""
+    val hasLocation  = weatherViewModel?.hasLocation?.collectAsState()?.value  ?: false
 
-    // Fetch weather for the current city whenever it changes
+    // Only fetch when a city has been set
     LaunchedEffect(currentCity) {
-        weatherViewModel?.fetchWeatherByCity(currentCity)
+        if (currentCity.isNotBlank()) {
+            weatherViewModel?.fetchWeatherByCity(currentCity)
+        }
     }
 
     // Pull-to-refresh state
@@ -230,6 +233,33 @@ fun WeatherDashboardScreen(
                             color = Color.White,
                             modifier = Modifier.size(32.dp)
                         )
+                    } else if (!hasLocation) {
+                        // No location set yet — prompt the user to add one
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Canvas(modifier = Modifier.size(48.dp)) {
+                            val cx = size.width / 2; val cy = size.height / 2
+                            val r  = size.width / 2 - 3.dp.toPx()
+                            drawCircle(color = Color.White, radius = r,
+                                style = Stroke(width = 2.5f))
+                            val arm = r * 0.45f
+                            drawLine(Color.White, Offset(cx, cy - arm), Offset(cx, cy + arm), 2.5f)
+                            drawLine(Color.White, Offset(cx - arm, cy), Offset(cx + arm, cy), 2.5f)
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "No location set",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Tap here to add a location",
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                     } else {
                         Text(
                             text = locationName,
