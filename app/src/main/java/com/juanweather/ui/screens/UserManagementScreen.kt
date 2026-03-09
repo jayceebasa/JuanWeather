@@ -33,6 +33,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -55,8 +56,8 @@ fun UserManagementScreen(
     authViewModel: AuthViewModel,
     onBack: () -> Unit
 ) {
-    // READ: Collect all users from Room via StateFlow — UI auto-updates on any DB change
-    val users by authViewModel.allUsers.collectAsState()
+    // READ: Observe all users from Room via LiveData — UI auto-updates on any DB change
+    val users by authViewModel.allUsersLiveData.observeAsState(initial = emptyList())
 
     val userToDelete = remember { mutableStateOf<User?>(null) }
     val userToEdit = remember { mutableStateOf<User?>(null) }
