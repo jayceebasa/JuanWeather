@@ -73,35 +73,49 @@ fun WeatherDashboardScreen(
     onNavigateToAddLocation: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToUserManagement: () -> Unit = {},
-    isAdmin: Boolean = false
+    isAdmin: Boolean = false,
+    weatherViewModel: com.juanweather.viewmodel.WeatherViewModel? = null
 ) {
     val showSosPopup = remember { mutableStateOf(false) }
 
-    // Sample data
-    val hourlyForecast = listOf(
-        HourlyForecastItem("NOW", "sun", "19°"),
-        HourlyForecastItem("12PM", "sun", "22°"),
-        HourlyForecastItem("1PM", "sun", "23°"),
-        HourlyForecastItem("2PM", "sun", "24°"),
-        HourlyForecastItem("3PM", "cloud", "23°"),
-        HourlyForecastItem("4PM", "cloud", "22°"),
-        HourlyForecastItem("5PM", "rain", "20°")
+    // Collect real weather data from ViewModel
+    val locationName  = weatherViewModel?.locationName?.collectAsState()?.value  ?: "Imus"
+    val temperature   = weatherViewModel?.temperature?.collectAsState()?.value   ?: "19°C"
+    val condition     = weatherViewModel?.condition?.collectAsState()?.value     ?: "Mostly Clear"
+    val highLow       = weatherViewModel?.highLow?.collectAsState()?.value       ?: "H:24° L:18°"
+    val chanceOfRain  = weatherViewModel?.chanceOfRain?.collectAsState()?.value  ?: "91%"
+    val isLoading     = weatherViewModel?.isLoading?.collectAsState()?.value     ?: false
+    val errorMessage  = weatherViewModel?.errorMessage?.collectAsState()?.value
+
+    val hourlyForecast = weatherViewModel?.hourlyForecast?.collectAsState()?.value ?: listOf(
+        HourlyForecastItem("NOW",  "sun",   "19°"),
+        HourlyForecastItem("12PM", "sun",   "22°"),
+        HourlyForecastItem("1PM",  "sun",   "23°"),
+        HourlyForecastItem("2PM",  "sun",   "24°"),
+        HourlyForecastItem("3PM",  "cloud", "23°"),
+        HourlyForecastItem("4PM",  "cloud", "22°"),
+        HourlyForecastItem("5PM",  "rain",  "20°")
     )
 
-    val dailyForecast = listOf(
+    val dailyForecast = weatherViewModel?.dailyForecast?.collectAsState()?.value ?: listOf(
         DailyForecastItem("TODAY", "sun"),
-        DailyForecastItem("TUE", "rain"),
-        DailyForecastItem("WED", "drizzle"),
-        DailyForecastItem("THUR", "cloud"),
-        DailyForecastItem("FRI", "cloud")
+        DailyForecastItem("TUE",   "rain"),
+        DailyForecastItem("WED",   "drizzle"),
+        DailyForecastItem("THUR",  "cloud"),
+        DailyForecastItem("FRI",   "cloud")
     )
 
-    val metrics = listOf(
-        Metric("HUMIDITY", "91%"),
-        Metric("REAL FEEL", "24°C"),
-        Metric("UV", "0"),
-        Metric("PRESSURE", "1008mbar")
+    val metrics = weatherViewModel?.metrics?.collectAsState()?.value ?: listOf(
+        Metric("HUMIDITY",   "91%"),
+        Metric("REAL FEEL",  "24°C"),
+        Metric("UV",         "0"),
+        Metric("PRESSURE",   "1008mbar")
     )
+
+    // Fetch weather for Imus, Cavite on first load
+    LaunchedEffect(Unit) {
+        weatherViewModel?.fetchWeatherByCity("Imus, Cavite")
+    }
 
     Box(
         modifier = Modifier
@@ -197,34 +211,47 @@ fun WeatherDashboardScreen(
                         .fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        text = "Imus",
-                        color = Color.White,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Light,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-
-                    Text(
-                        text = "19°C",
-                        color = Color.White,
-                        fontSize = 72.sp,
-                        fontWeight = FontWeight.Thin,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-
-                    Text(
-                        text = "Mostly Clear",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-
-                    Text(
-                        text = "H:24° L:18°",
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 14.sp
-                    )
+                    if (isLoading) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    } else {
+                        Text(
+                            text = locationName,
+                            color = Color.White,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Light,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        Text(
+                            text = temperature,
+                            color = Color.White,
+                            fontSize = 72.sp,
+                            fontWeight = FontWeight.Thin,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        Text(
+                            text = condition,
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                        Text(
+                            text = highLow,
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 14.sp
+                        )
+                        if (errorMessage != null) {
+                            Text(
+                                text = errorMessage!!,
+                                color = Color(0xFFEF5350),
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(top = 8.dp),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
                 }
             }
 
@@ -395,7 +422,7 @@ fun WeatherDashboardScreen(
                                 )
 
                                 Text(
-                                    text = "91%",
+                                    text = chanceOfRain,
                                     color = Color.White,
                                     fontSize = 60.sp,
                                     fontWeight = FontWeight.Thin,

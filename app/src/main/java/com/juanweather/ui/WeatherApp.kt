@@ -20,6 +20,7 @@ import com.juanweather.ui.screens.UserManagementScreen
 import com.juanweather.ui.screens.WeatherDashboardScreen
 import com.juanweather.ui.screens.WeatherPreferencesScreen
 import com.juanweather.viewmodel.AuthViewModel
+import com.juanweather.viewmodel.WeatherViewModel
 
 /**
  * Enumeration for different app screens
@@ -87,6 +88,16 @@ fun WeatherApp() {
         }
     )
 
+    // Build WeatherViewModel with weatherapi.com repository
+    val weatherViewModel: WeatherViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return WeatherViewModel(app.weatherRepository) as T
+            }
+        }
+    )
+
     val navigationController = remember { NavigationController() }
     val currentScreen = remember { mutableStateOf(AppScreen.Login) }
 
@@ -124,6 +135,7 @@ fun WeatherApp() {
 
         AppScreen.Dashboard -> {
             WeatherDashboardScreen(
+                weatherViewModel = weatherViewModel,
                 onNavigateToAddLocation = {
                     navigationController.navigate(AppScreen.AddLocation)
                     currentScreen.value = AppScreen.AddLocation

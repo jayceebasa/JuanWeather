@@ -2,8 +2,8 @@ package com.juanweather.utils
 
 object Constants {
     // API Keys
-    const val WEATHER_API_KEY = "YOUR_OPENWEATHERMAP_API_KEY"
-    const val BASE_URL = "https://api.openweathermap.org/data/2.5/"
+    const val WEATHER_API_KEY = "010b4a1c55cc416ba4b114408260903"
+    const val WEATHER_BASE_URL = "https://api.weatherapi.com/v1/"
 
     // Preferences
     const val PREFERENCES_NAME = "juanweather_prefs"
