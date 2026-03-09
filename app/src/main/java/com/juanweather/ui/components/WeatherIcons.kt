@@ -247,16 +247,56 @@ fun SettingsIcon(
 }
 
 @Composable
+fun MoonIcon(
+    modifier: Modifier = Modifier.size(28.dp),
+    color: Color = Color(0xFFE2E8F0)
+) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        // Crescent moon: large circle minus an offset smaller circle (drawn as arc trick)
+        // Draw a filled arc for the outer circle
+        val outerRadius = w / 2.4f
+        val center = Offset(w / 2f + w * 0.05f, h / 2f)
+
+        // Outer filled circle
+        drawCircle(
+            color = color,
+            radius = outerRadius,
+            center = center
+        )
+
+        // Inner "cutout" circle shifted to create crescent
+        drawCircle(
+            color = Color(0xFF1B1B2F), // matches dark background
+            radius = outerRadius * 0.82f,
+            center = Offset(center.x + outerRadius * 0.45f, center.y - outerRadius * 0.1f)
+        )
+
+        // Small star to the top-right
+        val starCenter = Offset(w * 0.82f, h * 0.18f)
+        val starR = w / 14f
+        drawCircle(color = color, radius = starR, center = starCenter)
+
+        // Tiny star below
+        val star2 = Offset(w * 0.75f, h * 0.38f)
+        drawCircle(color = color, radius = starR * 0.6f, center = star2)
+    }
+}
+
+@Composable
 fun WeatherIcon(
     iconType: String,
     modifier: Modifier = Modifier.size(28.dp),
     color: Color = Color.White
 ) {
     when (iconType) {
-        "sun" -> SunIcon(modifier, color = Color(0xFFFCD34D))
-        "cloud" -> CloudIcon(modifier, color = Color(0xFFE5E7EB))
-        "rain" -> CloudRainIcon(modifier, color = Color(0xFF93C5FD))
+        "sun"     -> SunIcon(modifier, color = Color(0xFFFCD34D))
+        "cloud"   -> CloudIcon(modifier, color = Color(0xFFE5E7EB))
+        "rain"    -> CloudRainIcon(modifier, color = Color(0xFF93C5FD))
         "drizzle" -> CloudDrizzleIcon(modifier, color = Color(0xFF93C5FD))
-        else -> SunIcon(modifier, color = Color(0xFFFCD34D))
+        "night"   -> MoonIcon(modifier)
+        else      -> SunIcon(modifier, color = Color(0xFFFCD34D))
     }
 }

@@ -21,6 +21,7 @@ data class WeatherLocation(
 )
 
 data class CurrentWeather(
+    @SerializedName("is_day")       val isDay: Int,             // 1 = day, 0 = night
     @SerializedName("temp_c")       val tempC: Float,
     @SerializedName("temp_f")       val tempF: Float,
     @SerializedName("feelslike_c")  val feelsLikeC: Float,
@@ -58,9 +59,10 @@ data class DaySummary(
 )
 
 data class HourWeather(
-    @SerializedName("time")      val time: String,
-    @SerializedName("temp_c")    val tempC: Float,
-    @SerializedName("condition") val condition: WeatherCondition,
+    @SerializedName("time")           val time: String,
+    @SerializedName("temp_c")         val tempC: Float,
+    @SerializedName("is_day")         val isDay: Int,           // 1 = day, 0 = night
+    @SerializedName("condition")      val condition: WeatherCondition,
     @SerializedName("chance_of_rain") val chanceOfRain: Int
 )
 

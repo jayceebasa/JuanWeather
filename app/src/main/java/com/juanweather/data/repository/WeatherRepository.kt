@@ -7,7 +7,6 @@ import com.juanweather.ui.models.HourlyForecastItem
 import com.juanweather.ui.models.Metric
 import com.juanweather.utils.Constants
 import java.util.Calendar
-import java.util.Locale
 
 class WeatherRepository(private val apiService: WeatherApiService) {
 
@@ -16,7 +15,7 @@ class WeatherRepository(private val apiService: WeatherApiService) {
         return apiService.getForecast(
             apiKey = Constants.WEATHER_API_KEY,
             query  = "$lat,$lon",
-            days   = 5
+            days   = 6
         )
     }
 
@@ -25,63 +24,71 @@ class WeatherRepository(private val apiService: WeatherApiService) {
         return apiService.getForecast(
             apiKey = Constants.WEATHER_API_KEY,
             query  = city,
-            days   = 5
+            days   = 6
         )
     }
 
-    // Map weatherapi.com condition text → your existing icon types ("sun","cloud","rain","drizzle")
-    fun mapConditionToIcon(conditionCode: Int): String {
+    // isDay: 1 = daytime, 0 = night — returns "night" for clear/partly cloudy at night
+    fun mapConditionToIcon(conditionCode: Int, isDay: Int = 1): String {
         return when (conditionCode) {
-            1000 -> "sun"                          // Sunny / Clear
-            1003, 1006 -> "cloud"                  // Partly/Mostly cloudy
-            1009 -> "cloud"                        // Overcast
+            1000 -> if (isDay == 1) "sun" else "night"   // Clear sky
+            1003 -> if (isDay == 1) "sun" else "night"   // Partly cloudy
+            1006, 1009 -> "cloud"                         // Cloudy / Overcast
             1063, 1180, 1183, 1186, 1189,
-            1192, 1195, 1198, 1201 -> "rain"       // Rain variants
-            1150, 1153, 1168, 1171 -> "drizzle"    // Drizzle variants
+            1192, 1195, 1198, 1201 -> "rain"
+            1150, 1153, 1168, 1171 -> "drizzle"
             1066, 1069, 1072, 1114, 1117,
             1210, 1213, 1216, 1219, 1222,
             1225, 1237, 1240, 1243, 1246,
             1249, 1252, 1255, 1258, 1261,
-            1264 -> "rain"                         // Snow/sleet → rain icon
-            1087, 1273, 1276, 1279, 1282 -> "rain" // Thunder
+            1264 -> "rain"
+            1087, 1273, 1276, 1279, 1282 -> "rain"
             else -> "cloud"
         }
     }
 
-    // Map today's hourly forecast to your HourlyForecastItem list
+    // All hours from current hour through tomorrow — each with correct day/night icon
     fun mapHourlyForecast(response: WeatherApiResponse): List<HourlyForecastItem> {
-        val hours = response.forecast?.forecastDay?.firstOrNull()?.hour ?: return emptyList()
+        val forecastDays = response.forecast?.forecastDay ?: return emptyList()
         val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        val allHours = forecastDays.take(2).flatMap { it.hour }
 
-        return hours
-            .filter { hourWeather ->
-                val hourInt = hourWeather.time.split(" ").last().split(":").first().toIntOrNull() ?: 0
-                hourInt >= currentHour
+        var firstEntry = true
+        return allHours
+            .filter { hw ->
+                val hourInt = hw.time.split(" ").last().split(":").first().toIntOrNull() ?: 0
+                val isToday = hw.time.startsWith(forecastDays[0].date)
+                (!isToday) || (hourInt >= currentHour)
             }
-            .take(7)
-            .mapIndexed { index, hourWeather ->
-                val hourInt = hourWeather.time.split(" ").last().split(":").first().toIntOrNull() ?: 0
-                val label = if (index == 0) "NOW" else {
+            .map { hw ->
+                val hourInt = hw.time.split(" ").last().split(":").first().toIntOrNull() ?: 0
+                val label = if (firstEntry) {
+                    firstEntry = false
+                    "NOW"
+                } else {
                     val suffix = if (hourInt < 12) "AM" else "PM"
-                    val display = if (hourInt == 0) 12 else if (hourInt > 12) hourInt - 12 else hourInt
+                    val display = when (hourInt) {
+                        0         -> 12
+                        in 13..23 -> hourInt - 12
+                        else      -> hourInt
+                    }
                     "${display}${suffix}"
                 }
                 HourlyForecastItem(
-                    time = label,
-                    iconType = mapConditionToIcon(hourWeather.condition.code),
-                    temperature = "${hourWeather.tempC.toInt()}°"
+                    time        = label,
+                    iconType    = mapConditionToIcon(hw.condition.code, hw.isDay),
+                    temperature = "${hw.tempC.toInt()}°"
                 )
             }
     }
 
-    // Map 5-day forecast to your DailyForecastItem list
+    // 5-day forecast with real day names from API, always daytime icon for daily summary
     fun mapDailyForecast(response: WeatherApiResponse): List<DailyForecastItem> {
         val days = response.forecast?.forecastDay ?: return emptyList()
         val dayNames = listOf("SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT")
-        return days.mapIndexed { index, forecastDay ->
+        return days.take(5).mapIndexed { index, forecastDay ->
             val label = if (index == 0) "TODAY" else {
                 try {
-                    // Parse "yyyy-MM-dd" manually to stay API 21 compatible
                     val parts = forecastDay.date.split("-")
                     val cal = Calendar.getInstance()
                     cal.set(parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt())
@@ -91,8 +98,8 @@ class WeatherRepository(private val apiService: WeatherApiService) {
                 }
             }
             DailyForecastItem(
-                day = label,
-                iconType = mapConditionToIcon(forecastDay.day.condition.code)
+                day      = label,
+                iconType = mapConditionToIcon(forecastDay.day.condition.code, isDay = 1)
             )
         }
     }
@@ -101,10 +108,10 @@ class WeatherRepository(private val apiService: WeatherApiService) {
     fun mapMetrics(response: WeatherApiResponse): List<Metric> {
         val current = response.current
         return listOf(
-            Metric("HUMIDITY",   "${current.humidity}%"),
-            Metric("REAL FEEL",  "${current.feelsLikeC.toInt()}°C"),
-            Metric("UV",         "${current.uv.toInt()}"),
-            Metric("PRESSURE",   "${current.pressureMb.toInt()}mbar")
+            Metric("HUMIDITY",  "${current.humidity}%"),
+            Metric("REAL FEEL", "${current.feelsLikeC.toInt()}°C"),
+            Metric("UV",        "${current.uv.toInt()}"),
+            Metric("PRESSURE",  "${current.pressureMb.toInt()}mbar")
         )
     }
 }
