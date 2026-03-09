@@ -20,6 +20,7 @@ import com.juanweather.ui.screens.UserManagementScreen
 import com.juanweather.ui.screens.WeatherDashboardScreen
 import com.juanweather.ui.screens.WeatherPreferencesScreen
 import com.juanweather.viewmodel.AuthViewModel
+import com.juanweather.viewmodel.LocationViewModel
 import com.juanweather.viewmodel.WeatherViewModel
 
 /**
@@ -98,17 +99,31 @@ fun WeatherApp() {
         }
     )
 
+    // Build LocationViewModel — per-user saved locations
+    val locationViewModel: LocationViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return LocationViewModel(app.userLocationDao, app.weatherRepository) as T
+            }
+        }
+    )
+
     val navigationController = remember { NavigationController() }
     val currentScreen = remember { mutableStateOf(AppScreen.Login) }
 
     // RBAC — observe admin status reactively
     val isAdmin by authViewModel.isAdmin.collectAsState()
+    val loggedInUser by authViewModel.loggedInUser.collectAsState()
 
     when (currentScreen.value) {
         AppScreen.Login -> {
             LoginScreen(
                 authViewModel = authViewModel,
                 onLoginSuccess = {
+                    // Load this user's saved locations
+                    val userId = authViewModel.loggedInUser.value?.id ?: 0
+                    locationViewModel.loadLocationsForUser(userId)
                     navigationController.navigate(AppScreen.Dashboard)
                     currentScreen.value = AppScreen.Dashboard
                 },
@@ -155,6 +170,19 @@ fun WeatherApp() {
         AppScreen.AddLocation -> {
             AddLocationScreen(
                 onBack = {
+                    navigationController.navigateBack()
+                    currentScreen.value = navigationController.getCurrentScreen()
+                },
+                locationViewModel = locationViewModel,
+                onLocationSelected = { selectedLocation ->
+                    val currentHomeCity = weatherViewModel.currentCity.value
+                    locationViewModel.swapWithHomeLocation(
+                        selectedLocation  = selectedLocation,
+                        currentHomeCity   = currentHomeCity,
+                        onSwitchCity      = { newCity ->
+                            weatherViewModel.fetchWeatherByCity(newCity)
+                        }
+                    )
                     navigationController.navigateBack()
                     currentScreen.value = navigationController.getCurrentScreen()
                 }

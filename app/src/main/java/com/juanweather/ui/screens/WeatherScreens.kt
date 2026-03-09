@@ -31,6 +31,10 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -68,6 +72,7 @@ import androidx.compose.foundation.Canvas
 /**
  * Main weather dashboard screen composable
  */
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun WeatherDashboardScreen(
     onNavigateToAddLocation: () -> Unit,
@@ -112,15 +117,24 @@ fun WeatherDashboardScreen(
         Metric("PRESSURE",   "1008mbar")
     )
 
-    // Fetch weather for Imus, Cavite on first load
-    LaunchedEffect(Unit) {
-        weatherViewModel?.fetchWeatherByCity("Imus, Cavite")
+    val currentCity = weatherViewModel?.currentCity?.collectAsState()?.value ?: "Imus, Cavite"
+
+    // Fetch weather for the current city whenever it changes
+    LaunchedEffect(currentCity) {
+        weatherViewModel?.fetchWeatherByCity(currentCity)
     }
+
+    // Pull-to-refresh state
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isLoading,
+        onRefresh  = { weatherViewModel?.fetchWeatherByCity(currentCity) }
+    )
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .pullRefresh(pullRefreshState)
     ) {
         // Background image (volcano & rice fields)
         AsyncImage(
@@ -494,6 +508,15 @@ fun WeatherDashboardScreen(
 
             Spacer(modifier = Modifier.height(40.dp))
         }
+
+        // Pull-to-refresh spinner shown at the top while refreshing
+        PullRefreshIndicator(
+            refreshing = isLoading,
+            state      = pullRefreshState,
+            modifier   = Modifier.align(Alignment.TopCenter),
+            contentColor = Color.White,
+            backgroundColor = Color(0xFF2E2E2E)
+        )
     }
 
     // SOS Success Dialog
@@ -1595,7 +1618,8 @@ data class LocationWeather(
     val temp: Int,
     val condition: String,
     val highTemp: Int,
-    val icon: String
+    val icon: String,
+    val locationId: Int = 0   // Room PK — used for delete
 )
 
 /**
@@ -1603,35 +1627,33 @@ data class LocationWeather(
  */
 @Composable
 fun AddLocationScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    locationViewModel: com.juanweather.viewmodel.LocationViewModel? = null,
+    onLocationSelected: ((LocationWeather) -> Unit)? = null
 ) {
-    val locations = remember {
-        listOf(
-            LocationWeather(
-                id = "1",
-                city = "Imus",
-                temp = 19,
-                condition = "Mostly Clear",
-                highTemp = 24,
-                icon = "sun"
-            ),
-            LocationWeather(
-                id = "2",
-                city = "Manila",
-                temp = 26,
-                condition = "Light Rain",
-                highTemp = 29,
-                icon = "rain"
-            ),
-            LocationWeather(
-                id = "3",
-                city = "Tagaytay",
-                temp = 22,
-                condition = "Cloudy",
-                highTemp = 25,
-                icon = "cloud"
-            )
-        )
+    val locationCards = locationViewModel?.locationCards?.collectAsState()?.value ?: emptyList()
+    val isLoading     = locationViewModel?.isLoading?.collectAsState()?.value    ?: false
+    val addResult     = locationViewModel?.addResult?.collectAsState()?.value
+        ?: com.juanweather.viewmodel.LocationViewModel.AddResult.Idle
+
+    val showAddDialog = remember { mutableStateOf(false) }
+    val cityInput     = remember { mutableStateOf("") }
+    val inputError    = remember { mutableStateOf<String?>(null) }
+
+    // React to add result
+    LaunchedEffect(addResult) {
+        when (addResult) {
+            is com.juanweather.viewmodel.LocationViewModel.AddResult.Success -> {
+                showAddDialog.value = false
+                cityInput.value = ""
+                inputError.value = null
+                locationViewModel?.resetAddResult()
+            }
+            is com.juanweather.viewmodel.LocationViewModel.AddResult.Error -> {
+                inputError.value = addResult.message
+            }
+            else -> {}
+        }
     }
 
     Box(
@@ -1667,234 +1689,200 @@ fun AddLocationScreen(
                     .clickable { onBack() },
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Back arrow icon
                 Box(
-                    modifier = Modifier
-                        .size(20.dp),
+                    modifier = Modifier.size(20.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
-                        // Draw left arrow
                         val centerY = size.height / 2
                         val centerX = size.width / 2
-                        val length = size.width / 2.5f
-
-                        drawLine(
-                            color = Color.White,
-                            start = Offset(centerX + length / 2, centerY - length / 2),
-                            end = Offset(centerX - length / 2, centerY),
-                            strokeWidth = 2.2f
-                        )
-                        drawLine(
-                            color = Color.White,
-                            start = Offset(centerX - length / 2, centerY),
-                            end = Offset(centerX + length / 2, centerY + length / 2),
-                            strokeWidth = 2.2f
-                        )
+                        val length  = size.width / 2.5f
+                        drawLine(color = Color.White, start = Offset(centerX + length / 2, centerY - length / 2), end = Offset(centerX - length / 2, centerY), strokeWidth = 2.2f)
+                        drawLine(color = Color.White, start = Offset(centerX - length / 2, centerY), end = Offset(centerX + length / 2, centerY + length / 2), strokeWidth = 2.2f)
                     }
                 }
-
-                Text(
-                    text = "Previous",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(start = 8.dp)
-                )
+                Text(text = "Previous", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 8.dp))
             }
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Location cards
+            // Loading indicator
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                    androidx.compose.material3.CircularProgressIndicator(color = Color.White)
+                }
+            }
+
+            // Location cards from Room
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                locations.forEach { location ->
-                    LocationWeatherCard(location)
+                if (locationCards.isEmpty() && !isLoading) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
+                        Text(text = "No locations saved yet.\nTap + to add your first location.", color = Color.White.copy(alpha = 0.6f), textAlign = TextAlign.Center, fontSize = 15.sp)
+                    }
+                }
+                locationCards.forEach { location ->
+                    LocationWeatherCard(
+                        location = location,
+                        onDelete = { locationViewModel?.deleteLocation(location.locationId) },
+                        onClick  = if (onLocationSelected != null) {
+                            { onLocationSelected(location) }
+                        } else null
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Add Location button
+            // ADD LOCATION button
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(40.dp),
+                    modifier = Modifier.size(40.dp).clickable { showAddDialog.value = true },
                     contentAlignment = Alignment.Center
                 ) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
-                        // Draw circle background
-                        drawCircle(
-                            color = Color(0xFFB0BEC5),
-                            radius = size.width / 2,
-                            alpha = 0.5f
-                        )
-                        // Draw plus sign
-                        val centerX = size.width / 2
-                        val centerY = size.height / 2
-                        val len = size.width / 4
-
-                        drawLine(
-                            color = Color.White,
-                            start = Offset(centerX, centerY - len),
-                            end = Offset(centerX, centerY + len),
-                            strokeWidth = 2.5f
-                        )
-                        drawLine(
-                            color = Color.White,
-                            start = Offset(centerX - len, centerY),
-                            end = Offset(centerX + len, centerY),
-                            strokeWidth = 2.5f
-                        )
+                        drawCircle(color = Color(0xFFB0BEC5), radius = size.width / 2, alpha = 0.5f)
+                        val cx = size.width / 2; val cy = size.height / 2; val len = size.width / 4
+                        drawLine(color = Color.White, start = Offset(cx, cy - len), end = Offset(cx, cy + len), strokeWidth = 2.5f)
+                        drawLine(color = Color.White, start = Offset(cx - len, cy), end = Offset(cx + len, cy), strokeWidth = 2.5f)
                     }
                 }
-
                 Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "ADD LOCATION",
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 1.sp
-                )
+                Text(text = "ADD LOCATION", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp,
+                    modifier = Modifier.clickable { showAddDialog.value = true })
             }
 
             Spacer(modifier = Modifier.height(30.dp))
         }
+
+        // ── Add Location Dialog ──────────────────────────────────────
+        if (showAddDialog.value) {
+            Dialog(onDismissRequest = {
+                showAddDialog.value = false
+                cityInput.value = ""
+                inputError.value = null
+                locationViewModel?.resetAddResult()
+            }) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF1E1E1E), RoundedCornerShape(20.dp))
+                        .padding(24.dp)
+                ) {
+                    Column {
+                        Text("Add Location", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Enter a city name", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        TextField(
+                            value = cityInput.value,
+                            onValueChange = {
+                                cityInput.value = it
+                                inputError.value = null
+                                locationViewModel?.resetAddResult()
+                            },
+                            placeholder = { Text("e.g. Manila, Tagaytay", color = Color.White.copy(alpha = 0.4f)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            isError = inputError.value != null,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor   = Color.White.copy(alpha = 0.1f),
+                                unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
+                                focusedTextColor        = Color.White,
+                                unfocusedTextColor      = Color.White,
+                                focusedIndicatorColor   = Color(0xFF81C784),
+                                unfocusedIndicatorColor = Color.White.copy(alpha = 0.3f)
+                            )
+                        )
+
+                        if (inputError.value != null) {
+                            Text(inputError.value!!, color = Color(0xFFEF5350), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        val isAdding = addResult is com.juanweather.viewmodel.LocationViewModel.AddResult.Loading
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Button(
+                                onClick = {
+                                    showAddDialog.value = false
+                                    cityInput.value = ""
+                                    inputError.value = null
+                                    locationViewModel?.resetAddResult()
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
+                                shape = RoundedCornerShape(10.dp)
+                            ) { Text("Cancel", color = Color.White) }
+
+                            Button(
+                                onClick = { if (!isAdding) locationViewModel?.addLocation(cityInput.value) },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF81C784)),
+                                shape = RoundedCornerShape(10.dp),
+                                enabled = !isAdding
+                            ) {
+                                if (isAdding) androidx.compose.material3.CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(18.dp))
+                                else Text("Add", color = Color.Black, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
+
 
 /**
  * Location Weather Card Component
  */
 @Composable
-fun LocationWeatherCard(location: LocationWeather) {
+fun LocationWeatherCard(location: LocationWeather, onDelete: () -> Unit = {}, onClick: (() -> Unit)? = null) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                color = Color(0x2F2E2E).copy(alpha = 0.68f),
-                shape = RoundedCornerShape(20.dp)
-            )
+            .background(color = Color(0x2F2E2E).copy(alpha = 0.68f), shape = RoundedCornerShape(20.dp))
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
             .padding(18.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Weather icon
-            Box(
-                modifier = Modifier
-                    .size(100.dp),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(modifier = Modifier.size(100.dp), contentAlignment = Alignment.Center) {
                 WeatherIconLarge(iconType = location.icon)
             }
-
-            // Content section (city, temp, condition, high temp)
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 16.dp, end = 64.dp),
+                modifier = Modifier.weight(1f).padding(start = 16.dp, end = 64.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = location.city,
-                    color = Color.White,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                Text(
-                    text = "${location.temp}°",
-                    color = Color.White,
-                    fontSize = 80.sp,
-                    fontWeight = FontWeight.Thin,
-                    lineHeight = 85.sp
-                )
-
-                Text(
-                    text = location.condition,
-                    color = Color.White.copy(alpha = 0.75f),
-                    fontSize = 16.sp
-                )
-
-                Text(
-                    text = "H:${location.highTemp}°",
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 16.sp
-                )
+                Text(text = location.city, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
+                Text(text = "${location.temp}°", color = Color.White, fontSize = 80.sp, fontWeight = FontWeight.Thin, lineHeight = 85.sp)
+                Text(text = location.condition, color = Color.White.copy(alpha = 0.75f), fontSize = 16.sp)
+                Text(text = "H:${location.highTemp}°", color = Color.White.copy(alpha = 0.7f), fontSize = 16.sp)
             }
-
-            // Delete button
+            // Delete button — wired to onDelete callback
             Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clickable { },
+                modifier = Modifier.size(32.dp).clickable { onDelete() },
                 contentAlignment = Alignment.Center
             ) {
-                Canvas(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .alpha(0.6f)
-                ) {
-                    val centerX = size.width / 2
-                    val centerY = size.height / 2
-                    val inset = size.width / 6
-
-                    // Draw trash can icon
-                    // Top handle
-                    drawLine(
-                        color = Color.White,
-                        start = Offset(centerX - inset * 1.2f, centerY - inset * 1.2f),
-                        end = Offset(centerX + inset * 1.2f, centerY - inset * 1.2f),
-                        strokeWidth = 1.5f
-                    )
-                    // Top line
-                    drawLine(
-                        color = Color.White,
-                        start = Offset(centerX - inset * 1.2f, centerY - inset * 0.8f),
-                        end = Offset(centerX + inset * 1.2f, centerY - inset * 0.8f),
-                        strokeWidth = 1.5f
-                    )
-                    // Body outline
-                    drawRect(
-                        color = Color.White,
-                        topLeft = Offset(centerX - inset, centerY - inset * 0.5f),
-                        size = Size(inset * 2, inset * 1.8f),
-                        style = Stroke(width = 1.5f)
-                    )
-                    // Vertical lines in body
-                    drawLine(
-                        color = Color.White,
-                        start = Offset(centerX - inset * 0.5f, centerY - inset * 0.5f),
-                        end = Offset(centerX - inset * 0.5f, centerY + inset * 0.9f),
-                        strokeWidth = 1.5f
-                    )
-                    drawLine(
-                        color = Color.White,
-                        start = Offset(centerX, centerY - inset * 0.5f),
-                        end = Offset(centerX, centerY + inset * 0.9f),
-                        strokeWidth = 1.5f
-                    )
-                    drawLine(
-                        color = Color.White,
-                        start = Offset(centerX + inset * 0.5f, centerY - inset * 0.5f),
-                        end = Offset(centerX + inset * 0.5f, centerY + inset * 0.9f),
-                        strokeWidth = 1.5f
-                    )
+                Canvas(modifier = Modifier.fillMaxSize().alpha(0.6f)) {
+                    val centerX = size.width / 2; val centerY = size.height / 2; val inset = size.width / 6
+                    drawLine(color = Color.White, start = Offset(centerX - inset * 1.2f, centerY - inset * 1.2f), end = Offset(centerX + inset * 1.2f, centerY - inset * 1.2f), strokeWidth = 1.5f)
+                    drawLine(color = Color.White, start = Offset(centerX - inset * 1.2f, centerY - inset * 0.8f), end = Offset(centerX + inset * 1.2f, centerY - inset * 0.8f), strokeWidth = 1.5f)
+                    drawRect(color = Color.White, topLeft = Offset(centerX - inset, centerY - inset * 0.5f), size = Size(inset * 2, inset * 1.8f), style = Stroke(width = 1.5f))
+                    drawLine(color = Color.White, start = Offset(centerX - inset * 0.5f, centerY - inset * 0.5f), end = Offset(centerX - inset * 0.5f, centerY + inset * 0.9f), strokeWidth = 1.5f)
+                    drawLine(color = Color.White, start = Offset(centerX, centerY - inset * 0.5f), end = Offset(centerX, centerY + inset * 0.9f), strokeWidth = 1.5f)
+                    drawLine(color = Color.White, start = Offset(centerX + inset * 0.5f, centerY - inset * 0.5f), end = Offset(centerX + inset * 0.5f, centerY + inset * 0.9f), strokeWidth = 1.5f)
                 }
             }
         }

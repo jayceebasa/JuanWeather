@@ -15,6 +15,7 @@ class JuanWeatherApp : Application() {
     val database by lazy { AppDatabase.getInstance(this) }
     val userRepository by lazy { UserRepository(database.userDao()) }
     val weatherRepository by lazy { WeatherRepository(ApiClient.getWeatherService()) }
+    val userLocationDao by lazy { database.userLocationDao() }
 
     companion object {
         lateinit var instance: JuanWeatherApp

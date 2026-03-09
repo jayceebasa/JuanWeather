@@ -14,6 +14,10 @@ import kotlinx.coroutines.launch
 
 class WeatherViewModel(private val repository: WeatherRepository) : ViewModel() {
 
+    // The raw city string currently displayed on the homepage
+    private val _currentCity = MutableStateFlow("Imus, Cavite")
+    val currentCity: StateFlow<String> = _currentCity.asStateFlow()
+
     private val _locationName   = MutableStateFlow("--")
     val locationName: StateFlow<String> = _locationName.asStateFlow()
 
@@ -51,6 +55,7 @@ class WeatherViewModel(private val repository: WeatherRepository) : ViewModel() 
 
     // Called with a city name string
     fun fetchWeatherByCity(city: String) {
+        _currentCity.value = city
         fetchWeather { repository.getWeatherForCity(city) }
     }
 
