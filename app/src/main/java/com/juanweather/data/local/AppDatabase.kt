@@ -28,19 +28,6 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        // Seeds the admin account on every open, but only if it doesn't exist yet
-        private val SEED_CALLBACK = object : Callback() {
-            override fun onOpen(db: SupportSQLiteDatabase) {
-                super.onOpen(db)
-                db.execSQL(
-                    """
-                    INSERT OR IGNORE INTO users (name, email, password, role, createdAt)
-                    VALUES ('Administrator', 'admin', 'admin123', 'admin', ${System.currentTimeMillis()})
-                    """.trimIndent()
-                )
-            }
-        }
-
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -49,7 +36,6 @@ abstract class AppDatabase : RoomDatabase() {
                     "juanweather.db"
                 )
                     .addMigrations(MIGRATION_1_2)
-                    .addCallback(SEED_CALLBACK)
                     .build()
                 INSTANCE = instance
                 instance
