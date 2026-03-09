@@ -1,35 +1,44 @@
 package com.juanweather.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.ViewModelProvider
+import com.juanweather.JuanWeatherApp
 import com.juanweather.ui.screens.AddLocationScreen
 import com.juanweather.ui.screens.AboutSupportScreen
 import com.juanweather.ui.screens.EmergencyContactScreen
 import com.juanweather.ui.screens.LoginScreen
-import com.juanweather.ui.screens.PlaceholderScreen
+import com.juanweather.ui.screens.RegisterScreen
 import com.juanweather.ui.screens.SettingsScreen
 import com.juanweather.ui.screens.SOSSettingsScreen
+import com.juanweather.ui.screens.UserManagementScreen
 import com.juanweather.ui.screens.WeatherDashboardScreen
 import com.juanweather.ui.screens.WeatherPreferencesScreen
+import com.juanweather.viewmodel.AuthViewModel
 
 /**
  * Enumeration for different app screens
  */
 enum class AppScreen {
     Login,
+    Register,
     Dashboard,
     AddLocation,
     Settings,
     WeatherPreferences,
     EmergencyContact,
     SOSSettings,
-    AboutSupport
+    AboutSupport,
+    UserManagement
 }
 
 /**
  * Navigation controller that manages a backstack of screens
- * Supports forward navigation (push) and backward navigation (pop)
  */
 class NavigationController {
     private var backStack = mutableListOf(AppScreen.Login)
@@ -65,15 +74,50 @@ class NavigationController {
  */
 @Composable
 fun WeatherApp() {
+    val context = LocalContext.current
+    val app = context.applicationContext as JuanWeatherApp
+
+    // Build AuthViewModel with Room-backed repository
+    val authViewModel: AuthViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return AuthViewModel(app.userRepository) as T
+            }
+        }
+    )
+
     val navigationController = remember { NavigationController() }
     val currentScreen = remember { mutableStateOf(AppScreen.Login) }
+
+    // RBAC — observe admin status reactively
+    val isAdmin by authViewModel.isAdmin.collectAsState()
 
     when (currentScreen.value) {
         AppScreen.Login -> {
             LoginScreen(
+                authViewModel = authViewModel,
                 onLoginSuccess = {
                     navigationController.navigate(AppScreen.Dashboard)
                     currentScreen.value = AppScreen.Dashboard
+                },
+                onNavigateToRegister = {
+                    navigationController.navigate(AppScreen.Register)
+                    currentScreen.value = AppScreen.Register
+                }
+            )
+        }
+
+        AppScreen.Register -> {
+            RegisterScreen(
+                authViewModel = authViewModel,
+                onRegisterSuccess = {
+                    navigationController.navigateBack()
+                    currentScreen.value = navigationController.getCurrentScreen()
+                },
+                onNavigateToLogin = {
+                    navigationController.navigateBack()
+                    currentScreen.value = navigationController.getCurrentScreen()
                 }
             )
         }
@@ -87,7 +131,12 @@ fun WeatherApp() {
                 onNavigateToSettings = {
                     navigationController.navigate(AppScreen.Settings)
                     currentScreen.value = AppScreen.Settings
-                }
+                },
+                onNavigateToUserManagement = {
+                    navigationController.navigate(AppScreen.UserManagement)
+                    currentScreen.value = AppScreen.UserManagement
+                },
+                isAdmin = isAdmin
             )
         }
 
@@ -107,6 +156,7 @@ fun WeatherApp() {
                     currentScreen.value = navigationController.getCurrentScreen()
                 },
                 onLogout = {
+                    authViewModel.logout()
                     navigationController.logout()
                     currentScreen.value = navigationController.getCurrentScreen()
                 },
@@ -130,7 +180,6 @@ fun WeatherApp() {
         }
 
         AppScreen.WeatherPreferences -> {
-            // Weather Preferences screen with functional UI
             WeatherPreferencesScreen(
                 onBack = {
                     navigationController.navigateBack()
@@ -159,6 +208,16 @@ fun WeatherApp() {
 
         AppScreen.AboutSupport -> {
             AboutSupportScreen(
+                onBack = {
+                    navigationController.navigateBack()
+                    currentScreen.value = navigationController.getCurrentScreen()
+                }
+            )
+        }
+
+        AppScreen.UserManagement -> {
+            UserManagementScreen(
+                authViewModel = authViewModel,
                 onBack = {
                     navigationController.navigateBack()
                     currentScreen.value = navigationController.getCurrentScreen()

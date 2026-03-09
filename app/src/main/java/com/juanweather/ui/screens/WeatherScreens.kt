@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -70,7 +71,9 @@ import androidx.compose.foundation.Canvas
 @Composable
 fun WeatherDashboardScreen(
     onNavigateToAddLocation: () -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNavigateToUserManagement: () -> Unit = {},
+    isAdmin: Boolean = false
 ) {
     val showSosPopup = remember { mutableStateOf(false) }
 
@@ -148,6 +151,19 @@ fun WeatherDashboardScreen(
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)
+                    )
+                }
+
+                // Users button — visible to admins only (RBAC)
+                if (isAdmin) {
+                    Text(
+                        text = "USERS",
+                        color = Color(0xFF81C784),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .clickable { onNavigateToUserManagement() }
+                            .padding(8.dp)
                     )
                 }
 
@@ -2712,12 +2728,13 @@ fun PreferenceSliderItem(
 
 /**
  * Login Screen Composable
- * Simple login page with username and password fields
- * Credentials: username = juan23, password = juan23
+ * Authenticates users against the Room database.
  */
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit
+    onLoginSuccess: () -> Unit,
+    onNavigateToRegister: () -> Unit = {},
+    authViewModel: com.juanweather.viewmodel.AuthViewModel? = null
 ) {
     val username = remember { mutableStateOf("") }
     val password = remember { mutableStateOf("") }
@@ -2726,11 +2743,28 @@ fun LoginScreen(
     val errorMessage = remember { mutableStateOf("") }
     val emailError = remember { mutableStateOf(false) }
 
-    val correctUsername = "juan23@gmail.com"
-    val correctPassword = "juan23"
+    val authState = authViewModel?.authState?.collectAsState()
 
-    // Email validation regex
+    // Observe ViewModel auth state
+    LaunchedEffect(authState?.value) {
+        when (val state = authState?.value) {
+            is com.juanweather.viewmodel.AuthViewModel.AuthState.LoginSuccess -> {
+                onLoginSuccess()
+                authViewModel.resetState()
+            }
+            is com.juanweather.viewmodel.AuthViewModel.AuthState.Error -> {
+                showError.value = true
+                errorMessage.value = state.message
+            }
+            else -> {}
+        }
+    }
+
+    val isLoading = authState?.value is com.juanweather.viewmodel.AuthViewModel.AuthState.Loading
+
+    // Email/username validation — 'admin' bypasses email format check
     fun isValidEmail(email: String): Boolean {
+        if (email == "admin") return true
         val emailPattern = "^[A-Za-z0-9+_.-]+@(.+)$"
         return email.matches(emailPattern.toRegex()) && email.contains("@") && email.contains(".")
     }
@@ -2899,35 +2933,39 @@ fun LoginScreen(
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center
                         )
-
                         Spacer(modifier = Modifier.height(16.dp))
                     }
 
                     // Login Button
                     Button(
                         onClick = {
-                            when {
-                                username.value.isEmpty() -> {
-                                    showError.value = true
-                                    errorMessage.value = "Email is required"
-                                }
-                                !isValidEmail(username.value) -> {
-                                    showError.value = true
-                                    errorMessage.value = "Please enter a valid email address"
-                                }
-                                password.value.isEmpty() -> {
-                                    showError.value = true
-                                    errorMessage.value = "Password is required"
-                                }
-                                username.value == correctUsername && password.value == correctPassword -> {
-                                    onLoginSuccess()
-                                }
-                                else -> {
-                                    showError.value = true
-                                    errorMessage.value = "Invalid email or password"
+                            showError.value = false
+                            if (authViewModel != null) {
+                                // Room-backed login via AuthViewModel
+                                authViewModel.login(username.value.trim(), password.value)
+                            } else {
+                                // Fallback demo credentials
+                                when {
+                                    username.value.isEmpty() -> {
+                                        showError.value = true
+                                        errorMessage.value = "Email is required"
+                                    }
+                                    !isValidEmail(username.value) -> {
+                                        showError.value = true
+                                        errorMessage.value = "Please enter a valid email address"
+                                    }
+                                    password.value.isEmpty() -> {
+                                        showError.value = true
+                                        errorMessage.value = "Password is required"
+                                    }
+                                    else -> {
+                                        showError.value = true
+                                        errorMessage.value = "Invalid email or password"
+                                    }
                                 }
                             }
                         },
+                        enabled = !isLoading,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),
@@ -2937,26 +2975,36 @@ fun LoginScreen(
                         ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(
-                            text = "Login",
-                            color = Color.Black,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        if (isLoading) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                color = Color.Black,
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                text = "Login",
+                                color = Color.Black,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Navigate to Register
+                    Text(
+                        text = "Don't have an account? Register",
+                        color = Color(0xFF81C784),
+                        fontSize = 14.sp,
+                        modifier = Modifier.clickable { onNavigateToRegister() },
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // Helper text
-            Text(
-                text = "Demo Credentials:\nEmail: juan23@gmail.com\nPassword: juan23",
-                color = Color.White.copy(alpha = 0.6f),
-                fontSize = 12.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 20.dp)
-            )
+            Spacer(modifier = Modifier.height(30.dp))
         }
     }
 }
