@@ -2,6 +2,18 @@
 
 A modern Android weather application built with **Jetpack Compose**, providing real-time weather information, location management, emergency contacts, and SOS functionality.
 
+## 📅 Sprint Highlights
+
+### Sprint 3 – Local Persistence & User Management
+- Added the full Room stack (`AppDatabase`, `UserDao`, `UserLocationDao`, `UserRepository`) with schema migrations from v1→v2 (adds the `role` column) and v2→v3 (creates `user_locations`).
+- Implemented `AuthViewModel` and `LocationViewModel` logic for registration, login, RBAC, duplicate-city checks, and the swap-with-home workflow seen in `WeatherScreens.kt`.
+- Validated functionality through nine `WeatherViewModelTest` cases and nine `LocationViewModelTest` cases under `app/src/test/java/com/juanweather/`, covering CRUD flows, error handling, and loading states.
+
+### Sprint 4 – Remote Data Integration
+- Standardized on a REST-only architecture using WeatherAPI.com via Retrofit/OkHttp (`data/remote/ApiClient.kt`, `WeatherApiService.kt`) and Gson-mapped models in `data/models/Weather.kt`.
+- `WeatherRepository` now exposes forecast fetchers plus mapping helpers (`mapHourlyForecast`, `mapDailyForecast`, `mapMetrics`) consumed by `WeatherViewModel` and `LocationViewModel` for UI-ready data.
+- Hardened error handling: both ViewModels wrap API calls in try/catch/finally blocks, surface user-friendly errors, validate city names before inserts, and fall back to placeholder cards when a single city fails to load.
+
 ## 📱 Features
 
 ### Core Weather Features
