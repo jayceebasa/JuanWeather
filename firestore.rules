@@ -1,0 +1,150 @@
+/**
+ * Firestore Security Rules for Juan Weather App
+ * These rules enforce user-scoped data access and prevent data leaking between users
+ *
+ * Key Security Principles:
+ * 1. User can only read/write their own documents (users/{uid})
+ * 2. User-scoped collections (emergencyContacts, settings, locations) are private
+ * 3. Public data like weather is read-only
+ * 4. Admin operations require proper authentication and role verification
+ */
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===== UTILITY FUNCTIONS =====
+
+    /**
+     * Check if current user is authenticated
+     */
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    /**
+     * Check if current user ID matches the document owner
+     */
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    /**
+     * Check if user has admin role
+     */
+    function isAdmin() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
+    /**
+     * Validate emergency contact object
+     */
+    function isValidEmergencyContact(data) {
+      return data.size() > 0
+        && 'id' in data && data.id is string
+        && 'name' in data && data.name is string && data.name.size() > 0
+        && 'phoneNumber' in data && data.phoneNumber is string && data.phoneNumber.size() > 0
+        && (!('relationship' in data) || data.relationship is string);
+    }
+
+    /**
+     * Validate app settings object
+     */
+    function isValidSettings(data) {
+      return data.size() > 0
+        && (!('temperatureUnit' in data) || data.temperatureUnit is string)
+        && (!('windSpeedUnit' in data) || data.windSpeedUnit is string)
+        && (!('pressureUnit' in data) || data.pressureUnit is string)
+        && (!('visibilityUnit' in data) || data.visibilityUnit is string)
+        && (!('theme' in data) || data.theme is string)
+        && (!('language' in data) || data.language is string)
+        && (!('notificationsEnabled' in data) || data.notificationsEnabled is bool);
+    }
+
+    /**
+     * Validate user location object
+     */
+    function isValidLocation(data) {
+      return data.size() > 0
+        && 'city' in data && data.city is string && data.city.size() > 0
+        && 'country' in data && data.country is string
+        && 'latitude' in data && data.latitude is number
+        && 'longitude' in data && data.longitude is number
+        && (!('isHome' in data) || data.isHome is bool)
+        && (!('addedAt' in data) || data.addedAt is number)
+        && (!('updatedAt' in data) || data.updatedAt is number);
+    }
+
+    /**
+     * Validate user profile object
+     */
+    function isValidUserProfile(data) {
+      return data.size() > 0
+        && 'uid' in data && data.uid is string
+        && 'name' in data && data.name is string && data.name.size() > 0
+        && 'email' in data && data.email is string
+        && 'createdAt' in data && data.createdAt is number
+        && (!('role' in data) || data.role is string);
+    }
+
+    // ===== USER PROFILES =====
+
+    /**
+     * /users/{uid} - User profile document
+     * Only user themselves can read, authenticated Firebase Auth ensures write
+     */
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow write: if isOwner(uid) && isValidUserProfile(request.resource.data);
+      allow create: if isOwner(uid) && isValidUserProfile(request.resource.data);
+
+      // ===== EMERGENCY CONTACTS SUBCOLLECTION =====
+
+      /**
+       * /users/{uid}/emergencyContacts/{contactId}
+       * Private - only owner can access
+       */
+      match /emergencyContacts/{contactId} {
+        allow read: if isOwner(uid);
+        allow write: if isOwner(uid) && isValidEmergencyContact(request.resource.data);
+        allow create: if isOwner(uid) && isValidEmergencyContact(request.resource.data);
+        allow delete: if isOwner(uid);
+      }
+
+      // ===== SETTINGS SUBCOLLECTION =====
+
+      /**
+       * /users/{uid}/settings/{settingDoc}
+       * Private - only owner can access
+       */
+      match /settings/{settingDoc} {
+        allow read: if isOwner(uid);
+        allow write: if isOwner(uid) && isValidSettings(request.resource.data);
+        allow create: if isOwner(uid) && isValidSettings(request.resource.data);
+        allow delete: if isOwner(uid);
+      }
+
+      // ===== LOCATIONS SUBCOLLECTION =====
+
+      /**
+       * /users/{uid}/locations/{locationId}
+       * Private - only owner can access
+       */
+      match /locations/{locationId} {
+        allow read: if isOwner(uid);
+        allow write: if isOwner(uid) && isValidLocation(request.resource.data);
+        allow create: if isOwner(uid) && isValidLocation(request.resource.data);
+        allow delete: if isOwner(uid);
+      }
+    }
+
+    // ===== CATCH-ALL: DENY ALL OTHER ACCESS =====
+
+    /**
+     * Default deny - all other collections/documents not explicitly allowed
+     */
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

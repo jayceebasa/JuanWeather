@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
+import com.juanweather.data.firebase.FirebaseAuthManager
 import com.juanweather.data.models.User
 import com.juanweather.data.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +17,7 @@ import kotlinx.coroutines.launch
 
 class AuthViewModel(private val repository: UserRepository) : ViewModel() {
 
-    // All registered users as StateFlow (Compose-friendly)
+    // All registered users as StateFlow (Compose-friendly) - from local Room cache
     val allUsers: StateFlow<List<User>> = repository.allUsers.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -31,6 +32,9 @@ class AuthViewModel(private val repository: UserRepository) : ViewModel() {
 
     private val _loggedInUser = MutableStateFlow<User?>(null)
     val loggedInUser: StateFlow<User?> = _loggedInUser.asStateFlow()
+
+    // Firebase current UID
+    val firebaseUid: StateFlow<String?> = FirebaseAuthManager.currentUid
 
     // RBAC — true only when the logged-in user has role == "admin"
     val isAdmin: StateFlow<Boolean> = _loggedInUser.map { it?.role == "admin" }.stateIn(
@@ -47,12 +51,25 @@ class AuthViewModel(private val repository: UserRepository) : ViewModel() {
 
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-            val user = repository.login(email, password)
-            if (user != null) {
-                _loggedInUser.value = user
-                _authState.value = AuthState.LoginSuccess(user)
-            } else {
-                _authState.value = AuthState.Error("Invalid email or password")
+            try {
+                // Use Firebase authentication
+                val result = FirebaseAuthManager.login(email, password)
+                if (result.isSuccess) {
+                    val uid = result.getOrNull()
+                    // Also try to get user from local Room cache for display purposes
+                    val user = repository.login(email, password)
+                    if (user != null) {
+                        _loggedInUser.value = user
+                        _authState.value = AuthState.LoginSuccess(user)
+                    } else {
+                        // User exists in Firebase but not in local Room, create local copy
+                        _authState.value = AuthState.LoginSuccess(User(name = email, email = email, password = "", role = "user"))
+                    }
+                } else {
+                    _authState.value = AuthState.Error("Invalid email or password")
+                }
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error("Login failed: ${e.message}")
             }
         }
     }
@@ -70,11 +87,28 @@ class AuthViewModel(private val repository: UserRepository) : ViewModel() {
 
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-            val result = repository.registerUser(name, email, password)
-            _authState.value = when (result) {
-                is UserRepository.RegisterResult.Success -> AuthState.RegisterSuccess
-                is UserRepository.RegisterResult.EmailAlreadyExists -> AuthState.Error("An account with this email already exists")
-                is UserRepository.RegisterResult.Error -> AuthState.Error(result.message)
+            try {
+                // Register with Firebase (saves to Firebase, not local Room)
+                val result = FirebaseAuthManager.register(name, email, password)
+                if (result.isSuccess) {
+                    val uid = result.getOrNull()
+                    // Also save to local Room for offline cache (optional)
+                    val localResult = repository.registerUser(name, email, password)
+                    _authState.value = when (localResult) {
+                        is UserRepository.RegisterResult.Success -> AuthState.RegisterSuccess
+                        else -> AuthState.RegisterSuccess // Firebase registration succeeded
+                    }
+                } else {
+                    val exception = result.exceptionOrNull()
+                    _authState.value = AuthState.Error(
+                        when {
+                            exception?.message?.contains("already exists") == true -> "An account with this email already exists"
+                            else -> exception?.message ?: "Registration failed"
+                        }
+                    )
+                }
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error("Registration failed: ${e.message}")
             }
         }
     }
@@ -94,6 +128,9 @@ class AuthViewModel(private val repository: UserRepository) : ViewModel() {
     }
 
     fun logout() {
+        // Logout from Firebase
+        FirebaseAuthManager.logout()
+        // Clear local state
         _loggedInUser.value = null
         _authState.value = AuthState.Idle
     }

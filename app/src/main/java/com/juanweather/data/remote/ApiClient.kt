@@ -14,8 +14,11 @@ object ApiClient {
             level = HttpLoggingInterceptor.Level.BODY
         }
 
+        val authInterceptor = AuthInterceptor()
+
         return OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
+            .addInterceptor(authInterceptor)  // Firebase Auth token injection
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)

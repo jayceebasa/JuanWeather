@@ -104,7 +104,11 @@ fun WeatherApp() {
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                return LocationViewModel(app.userLocationDao, app.weatherRepository) as T
+                return LocationViewModel(
+                    app.userLocationDao,
+                    app.weatherRepository,
+                    com.juanweather.data.repository.FirestoreUserLocationRepository()
+                ) as T
             }
         }
     )
@@ -123,7 +127,11 @@ fun WeatherApp() {
                 onLoginSuccess = {
                     // Load this user's saved locations
                     val userId = authViewModel.loggedInUser.value?.id ?: 0
-                    locationViewModel.loadLocationsForUser(userId)
+                    val firebaseUid = authViewModel.firebaseUid.value
+                    locationViewModel.loadLocationsForUser(userId, firebaseUid) { firstLocationCity ->
+                        // Auto-load the first location on the homepage
+                        weatherViewModel.fetchWeatherByCity(firstLocationCity)
+                    }
                     navigationController.navigate(AppScreen.Dashboard)
                     currentScreen.value = AppScreen.Dashboard
                 },
@@ -174,6 +182,7 @@ fun WeatherApp() {
                     currentScreen.value = navigationController.getCurrentScreen()
                 },
                 locationViewModel = locationViewModel,
+                userId = authViewModel.loggedInUser.value?.id ?: 0,
                 onLocationSelected = { selectedLocation ->
                     val currentHomeCity = weatherViewModel.currentCity.value
                     locationViewModel.swapWithHomeLocation(
@@ -196,6 +205,9 @@ fun WeatherApp() {
                     currentScreen.value = navigationController.getCurrentScreen()
                 },
                 onLogout = {
+                    // Clear all user data from ViewModels before logout
+                    weatherViewModel.clearData()
+                    locationViewModel.clearData()
                     authViewModel.logout()
                     navigationController.logout()
                     currentScreen.value = navigationController.getCurrentScreen()

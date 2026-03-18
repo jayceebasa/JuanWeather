@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "17195668016",
+    "project_id": "juanweather-dd39f",
+    "storage_bucket": "juanweather-dd39f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:17195668016:android:3fe35d9673297009ad93f5",
+        "android_client_info": {
+          "package_name": "com.juanweather"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCMOXiULMr6qlKXbE0NkeVFjXsRA7ctMVg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

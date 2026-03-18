@@ -7,7 +7,7 @@ import androidx.room.PrimaryKey
 data class UserLocation(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
-    val userId: Int,            // FK to User.id — each location belongs to a user
-    val cityName: String,
+    val userId: Int = 0,                    // FK to User.id — each location belongs to a user
+    val cityName: String = "",
     val addedAt: Long = System.currentTimeMillis()
 )

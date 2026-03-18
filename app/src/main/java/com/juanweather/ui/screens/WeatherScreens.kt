@@ -84,7 +84,7 @@ fun WeatherDashboardScreen(
     val showSosPopup = remember { mutableStateOf(false) }
 
     // Collect real weather data from ViewModel
-    val locationName  = weatherViewModel?.locationName?.collectAsState()?.value  ?: "Imus"
+    val locationName  = weatherViewModel?.locationName?.collectAsState()?.value  ?: ""
     val temperature   = weatherViewModel?.temperature?.collectAsState()?.value   ?: "19°C"
     val condition     = weatherViewModel?.condition?.collectAsState()?.value     ?: "Mostly Clear"
     val highLow       = weatherViewModel?.highLow?.collectAsState()?.value       ?: "H:24° L:18°"
@@ -1659,7 +1659,8 @@ data class LocationWeather(
 fun AddLocationScreen(
     onBack: () -> Unit,
     locationViewModel: com.juanweather.viewmodel.LocationViewModel? = null,
-    onLocationSelected: ((LocationWeather) -> Unit)? = null
+    onLocationSelected: ((LocationWeather) -> Unit)? = null,
+    userId: Int = 0
 ) {
     val locationCards = locationViewModel?.locationCards?.collectAsState()?.value ?: emptyList()
     val isLoading     = locationViewModel?.isLoading?.collectAsState()?.value    ?: false
@@ -1669,6 +1670,13 @@ fun AddLocationScreen(
     val showAddDialog = remember { mutableStateOf(false) }
     val cityInput     = remember { mutableStateOf("") }
     val inputError    = remember { mutableStateOf<String?>(null) }
+
+    // Load locations when screen is shown
+    LaunchedEffect(userId) {
+        if (userId > 0) {
+            locationViewModel?.loadLocationsForUser(userId)
+        }
+    }
 
     // React to add result
     LaunchedEffect(addResult) {

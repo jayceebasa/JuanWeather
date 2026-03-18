@@ -18,6 +18,10 @@ interface UserLocationDao {
     @Query("SELECT * FROM user_locations WHERE userId = :userId ORDER BY addedAt DESC")
     fun getLocationsForUser(userId: Int): Flow<List<UserLocation>>
 
+    // Get all locations for a specific user — synchronous (for batch operations)
+    @Query("SELECT * FROM user_locations WHERE userId = :userId ORDER BY addedAt DESC")
+    suspend fun getLocationsForUserSync(userId: Int): List<UserLocation>
+
     @Delete
     suspend fun deleteLocation(location: UserLocation)
 

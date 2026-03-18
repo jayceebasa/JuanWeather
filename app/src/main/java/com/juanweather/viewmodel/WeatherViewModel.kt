@@ -89,4 +89,23 @@ class WeatherViewModel(private val repository: WeatherRepository) : ViewModel() 
     }
 
     fun clearError() { _errorMessage.value = null }
+
+    /**
+     * Clear all weather data when user logs out
+     * Prevents showing previous user's weather data on new account
+     */
+    fun clearData() {
+        _currentCity.value = ""
+        _hasLocation.value = false
+        _locationName.value = "--"
+        _temperature.value = "--"
+        _condition.value = "--"
+        _highLow.value = "H:--° L:--°"
+        _chanceOfRain.value = "--"
+        _hourlyForecast.value = emptyList()
+        _dailyForecast.value = emptyList()
+        _metrics.value = emptyList()
+        _isLoading.value = false
+        _errorMessage.value = null
+    }
 }
