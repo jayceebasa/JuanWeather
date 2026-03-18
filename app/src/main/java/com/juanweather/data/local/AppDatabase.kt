@@ -8,16 +8,18 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.juanweather.data.models.User
 import com.juanweather.data.models.UserLocation
+import com.juanweather.data.models.AppSettings
 
 @Database(
-    entities = [User::class, UserLocation::class],
-    version = 3,
+    entities = [User::class, UserLocation::class, AppSettings::class],
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun userDao(): UserDao
     abstract fun userLocationDao(): UserLocationDao
+    abstract fun appSettingsDao(): AppSettingsDao
 
     companion object {
         @Volatile
@@ -46,6 +48,27 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Migration from v3 → v4: create the app_settings table
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS app_settings (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        userId INTEGER NOT NULL,
+                        temperatureUnit TEXT NOT NULL DEFAULT 'C',
+                        windSpeedUnit TEXT NOT NULL DEFAULT 'km/h',
+                        pressureUnit TEXT NOT NULL DEFAULT 'mb',
+                        visibilityUnit TEXT NOT NULL DEFAULT 'km',
+                        notificationsEnabled INTEGER NOT NULL DEFAULT 1,
+                        theme TEXT NOT NULL DEFAULT 'light',
+                        language TEXT NOT NULL DEFAULT 'en'
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -53,7 +76,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "juanweather.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                 INSTANCE = instance
                 instance

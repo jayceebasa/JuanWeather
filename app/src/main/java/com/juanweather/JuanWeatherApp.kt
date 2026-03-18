@@ -2,10 +2,12 @@ package com.juanweather
 
 import android.app.Application
 import com.juanweather.data.local.AppDatabase
+import com.juanweather.data.local.PreferencesHelper
 import com.juanweather.data.models.User
 import com.juanweather.data.remote.ApiClient
 import com.juanweather.data.repository.UserRepository
 import com.juanweather.data.repository.WeatherRepository
+import com.juanweather.data.repository.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -16,6 +18,9 @@ class JuanWeatherApp : Application() {
     val userRepository by lazy { UserRepository(database.userDao()) }
     val weatherRepository by lazy { WeatherRepository(ApiClient.getWeatherService()) }
     val userLocationDao by lazy { database.userLocationDao() }
+    val appSettingsDao by lazy { database.appSettingsDao() }
+    val preferencesHelper by lazy { PreferencesHelper(this) }
+    val settingsRepository by lazy { SettingsRepository(appSettingsDao) }
 
     companion object {
         lateinit var instance: JuanWeatherApp

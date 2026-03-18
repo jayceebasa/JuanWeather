@@ -113,6 +113,19 @@ fun WeatherApp() {
         }
     )
 
+    // Build SettingsViewModel — unified settings sync (Firebase + Room)
+    val settingsViewModel: com.juanweather.viewmodel.SettingsViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return com.juanweather.viewmodel.SettingsViewModel(
+                    app.preferencesHelper,
+                    app.settingsRepository
+                ) as T
+            }
+        }
+    )
+
     val navigationController = remember { NavigationController() }
     val currentScreen = remember { mutableStateOf(AppScreen.Login) }
 
@@ -125,9 +138,13 @@ fun WeatherApp() {
             LoginScreen(
                 authViewModel = authViewModel,
                 onLoginSuccess = {
-                    // Load this user's saved locations
+                    // Load this user's saved locations and settings
                     val userId = authViewModel.loggedInUser.value?.id ?: 0
                     val firebaseUid = authViewModel.firebaseUid.value
+
+                    // Sync settings from Firebase to Room on login
+                    settingsViewModel.syncSettingsOnLogin(userId, firebaseUid)
+
                     locationViewModel.loadLocationsForUser(userId, firebaseUid) { firstLocationCity ->
                         // Auto-load the first location on the homepage
                         weatherViewModel.fetchWeatherByCity(firstLocationCity)
@@ -146,6 +163,11 @@ fun WeatherApp() {
             RegisterScreen(
                 authViewModel = authViewModel,
                 onRegisterSuccess = {
+                    // Initialize default settings for new user
+                    val userId = authViewModel.loggedInUser.value?.id ?: 0
+                    if (userId > 0) {
+                        settingsViewModel.loadSettingsForUser(userId)
+                    }
                     navigationController.navigateBack()
                     currentScreen.value = navigationController.getCurrentScreen()
                 },
@@ -159,6 +181,7 @@ fun WeatherApp() {
         AppScreen.Dashboard -> {
             WeatherDashboardScreen(
                 weatherViewModel = weatherViewModel,
+                settingsViewModel = settingsViewModel,
                 onNavigateToAddLocation = {
                     navigationController.navigate(AppScreen.AddLocation)
                     currentScreen.value = AppScreen.AddLocation
@@ -233,6 +256,8 @@ fun WeatherApp() {
 
         AppScreen.WeatherPreferences -> {
             WeatherPreferencesScreen(
+                settingsViewModel = settingsViewModel,
+                loggedInUser = loggedInUser,
                 onBack = {
                     navigationController.navigateBack()
                     currentScreen.value = navigationController.getCurrentScreen()

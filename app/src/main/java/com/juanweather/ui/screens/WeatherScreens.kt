@@ -41,8 +41,10 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -79,9 +81,14 @@ fun WeatherDashboardScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToUserManagement: () -> Unit = {},
     isAdmin: Boolean = false,
-    weatherViewModel: com.juanweather.viewmodel.WeatherViewModel? = null
+    weatherViewModel: com.juanweather.viewmodel.WeatherViewModel? = null,
+    settingsViewModel: com.juanweather.viewmodel.SettingsViewModel? = null
 ) {
     val showSosPopup = remember { mutableStateOf(false) }
+
+    // Collect settings for unit conversions
+    val settingsState = settingsViewModel?.settings?.collectAsState()
+    val settings = settingsState?.value
 
     // Collect real weather data from ViewModel
     val locationName  = weatherViewModel?.locationName?.collectAsState()?.value  ?: ""
@@ -110,12 +117,15 @@ fun WeatherDashboardScreen(
         DailyForecastItem("FRI",   "cloud")
     )
 
-    val metrics = weatherViewModel?.metrics?.collectAsState()?.value ?: listOf(
+    val rawMetrics = weatherViewModel?.metrics?.collectAsState()?.value ?: listOf(
         Metric("HUMIDITY",   "91%"),
         Metric("REAL FEEL",  "24°C"),
         Metric("UV",         "0"),
         Metric("PRESSURE",   "1008mbar")
     )
+
+    // Convert metrics based on user settings
+    val metrics = convertMetricsToUserUnits(rawMetrics, settings)
 
     val currentCity  = weatherViewModel?.currentCity?.collectAsState()?.value  ?: ""
     val hasLocation  = weatherViewModel?.hasLocation?.collectAsState()?.value  ?: false
@@ -268,8 +278,17 @@ fun WeatherDashboardScreen(
                             fontWeight = FontWeight.Light,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
+                        // Convert main temperature to user's preferred unit
+                        val tempValue = temperature.replace("°C", "").replace("°F", "").trim().toDoubleOrNull() ?: 19.0
+                        val convertedTemp = if (settings?.temperatureUnit == "F") {
+                            val fahrenheit = (tempValue * 9/5) + 32
+                            "${fahrenheit.toInt()}°F"
+                        } else {
+                            "${tempValue.toInt()}°C"
+                        }
+
                         Text(
-                            text = temperature,
+                            text = convertedTemp,
                             color = Color.White,
                             fontSize = 72.sp,
                             fontWeight = FontWeight.Thin,
@@ -281,8 +300,20 @@ fun WeatherDashboardScreen(
                             fontSize = 18.sp,
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
+                        // Convert high/low temps to user's preferred unit
+                        val highLowConverted = if (settings?.temperatureUnit == "F") {
+                            val parts = highLow.split(" ")
+                            val hStr = parts.getOrNull(0)?.replace("H:", "")?.replace("°", "")?.trim()?.toDoubleOrNull() ?: 24.0
+                            val lStr = parts.getOrNull(1)?.replace("L:", "")?.replace("°", "")?.trim()?.toDoubleOrNull() ?: 18.0
+                            val hF = (hStr * 9/5) + 32
+                            val lF = (lStr * 9/5) + 32
+                            "H:${hF.toInt()}° L:${lF.toInt()}°"
+                        } else {
+                            highLow
+                        }
+
                         Text(
-                            text = highLow,
+                            text = highLowConverted,
                             color = Color.White.copy(alpha = 0.8f),
                             fontSize = 14.sp
                         )
@@ -363,8 +394,18 @@ fun WeatherDashboardScreen(
                                             modifier = Modifier.size(28.dp)
                                         )
 
+                                        // Convert hourly temperature to user's preferred unit
+                                        val tempStr = item.temperature.replace("°C", "").replace("°F", "").trim()
+                                        val tempC = tempStr.toDoubleOrNull() ?: 19.0
+                                        val convertedHourlyTemp = if (settings?.temperatureUnit == "F") {
+                                            val fahrenheit = (tempC * 9/5) + 32
+                                            "${fahrenheit.toInt()}°F"
+                                        } else {
+                                            "${tempC.toInt()}°C"
+                                        }
+
                                         Text(
-                                            text = item.temperature,
+                                            text = convertedHourlyTemp,
                                             color = Color.White,
                                             fontSize = 14.sp,
                                             modifier = Modifier.padding(top = 8.dp)
@@ -1834,6 +1875,8 @@ fun AddLocationScreen(
                                 unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
                                 focusedTextColor        = Color.White,
                                 unfocusedTextColor      = Color.White,
+                                focusedLabelColor       = Color.White.copy(alpha = 0.7f),
+                                unfocusedLabelColor     = Color.White.copy(alpha = 0.7f),
                                 focusedIndicatorColor   = Color(0xFF81C784),
                                 unfocusedIndicatorColor = Color.White.copy(alpha = 0.3f)
                             )
@@ -2454,11 +2497,19 @@ fun PlaceholderScreen(
  */
 @Composable
 fun WeatherPreferencesScreen(
+    settingsViewModel: com.juanweather.viewmodel.SettingsViewModel,
+    loggedInUser: com.juanweather.data.models.User?,
     onBack: () -> Unit
 ) {
-    val tempUnit = remember { mutableStateOf("Celsius") }
-    val rainfallAlerts = remember { mutableStateOf(true) }
-    val alertThreshold = remember { mutableStateOf(70f) }
+    val settingsState = settingsViewModel.settings.collectAsState()
+    val settings = settingsState.value
+
+    // Load settings on first appearance
+    LaunchedEffect(loggedInUser?.id) {
+        if (loggedInUser != null && loggedInUser.id > 0) {
+            settingsViewModel.loadSettingsForUser(loggedInUser.id)
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -2479,6 +2530,7 @@ fun WeatherPreferencesScreen(
                 .fillMaxSize()
                 .background(Color(0x51515199))
         )
+
 
         Column(
             modifier = Modifier
@@ -2558,26 +2610,58 @@ fun WeatherPreferencesScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Temperature Unit Selector
-                PreferenceSelectItem(
+                SettingsTileWithOptions(
                     title = "Temperature Unit",
-                    value = tempUnit.value,
-                    onSelect = {
-                        tempUnit.value = if (tempUnit.value == "Celsius") "Fahrenheit" else "Celsius"
+                    selectedValue = if (settings?.temperatureUnit == "C") "Celsius" else "Fahrenheit",
+                    options = listOf("Celsius", "Fahrenheit"),
+                    onOptionSelected = { selected ->
+                        val newUnit = if (selected == "Celsius") "C" else "F"
+                        settingsViewModel.updateTemperatureUnit(newUnit)
                     }
                 )
 
-                // Rainfall Alerts Toggle
-                PreferenceToggleItem(
-                    title = "Toggle Rainfall Alerts",
-                    isEnabled = rainfallAlerts.value,
-                    onToggle = { rainfallAlerts.value = it }
+                // Wind Speed Unit Selector
+                SettingsTileWithOptions(
+                    title = "Wind Speed Unit",
+                    selectedValue = if (settings?.windSpeedUnit == "km/h") "km/h" else "mph",
+                    options = listOf("km/h", "mph"),
+                    onOptionSelected = { selected ->
+                        settingsViewModel.updateWindSpeedUnit(selected)
+                    }
                 )
 
-                // Alert Threshold Slider
-                PreferenceSliderItem(
-                    title = "Set Alert Threshold",
-                    value = alertThreshold.value,
-                    onValueChange = { alertThreshold.value = it }
+                // Pressure Unit Selector
+                SettingsTileWithOptions(
+                    title = "Pressure Unit",
+                    selectedValue = if (settings?.pressureUnit == "mb") "Millibar (mb)" else "Inches of Mercury (inHg)",
+                    options = listOf("Millibar (mb)", "Inches of Mercury (inHg)"),
+                    onOptionSelected = { selected ->
+                        val newUnit = if (selected.contains("mb")) "mb" else "inHg"
+                        settingsViewModel.updatePressureUnit(newUnit)
+                    }
+                )
+
+                // Visibility Unit Selector
+                SettingsTileWithOptions(
+                    title = "Visibility Unit",
+                    selectedValue = if (settings?.visibilityUnit == "km") "Kilometers" else "Miles",
+                    options = listOf("Kilometers", "Miles"),
+                    onOptionSelected = { selected ->
+                        val newUnit = if (selected == "Kilometers") "km" else "mi"
+                        settingsViewModel.updateVisibilityUnit(newUnit)
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Notifications Toggle
+                SettingsTileWithOptions(
+                    title = "Notifications",
+                    selectedValue = if (settings?.notificationsEnabled == true) "Enabled" else "Disabled",
+                    options = listOf("Enabled", "Disabled"),
+                    onOptionSelected = { selected ->
+                        settingsViewModel.updateNotifications(selected == "Enabled")
+                    }
                 )
             }
 
@@ -2587,14 +2671,17 @@ fun WeatherPreferencesScreen(
 }
 
 /**
- * Select preference item (e.g., Temperature Unit)
+ * Settings Tile with Options - shows a dropdown/popup with selectable options
  */
 @Composable
-fun PreferenceSelectItem(
+fun SettingsTileWithOptions(
     title: String,
-    value: String,
-    onSelect: () -> Unit
+    selectedValue: String,
+    options: List<String>,
+    onOptionSelected: (String) -> Unit
 ) {
+    var expanded by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -2602,33 +2689,38 @@ fun PreferenceSelectItem(
                 color = Color(0x2F2E2E).copy(alpha = 0.68f),
                 shape = RoundedCornerShape(16.dp)
             )
-            .clickable { onSelect() }
-            .padding(16.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = title,
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
-
+        Column {
             Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = value,
-                    color = Color.White.copy(alpha = 0.6f),
-                    fontSize = 13.sp
-                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = title,
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = selectedValue,
+                        color = Color(0xFF81C784),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
 
+                // Dropdown indicator
                 Box(
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier
+                        .size(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
@@ -2636,143 +2728,101 @@ fun PreferenceSelectItem(
                         val centerY = size.height / 2
                         val length = size.width / 3
 
-                        drawLine(
-                            color = Color.White,
-                            start = Offset(centerX - length / 2, centerY - length / 2),
-                            end = Offset(centerX + length / 2, centerY),
-                            strokeWidth = 2f,
-                            alpha = 0.5f
-                        )
-                        drawLine(
-                            color = Color.White,
-                            start = Offset(centerX + length / 2, centerY),
-                            end = Offset(centerX - length / 2, centerY + length / 2),
-                            strokeWidth = 2f,
-                            alpha = 0.5f
-                        )
+                        if (expanded) {
+                            // Chevron up
+                            drawLine(
+                                color = Color(0xFF81C784),
+                                start = Offset(centerX - length / 2, centerY + length / 2),
+                                end = Offset(centerX, centerY - length / 2),
+                                strokeWidth = 2f
+                            )
+                            drawLine(
+                                color = Color(0xFF81C784),
+                                start = Offset(centerX, centerY - length / 2),
+                                end = Offset(centerX + length / 2, centerY + length / 2),
+                                strokeWidth = 2f
+                            )
+                        } else {
+                            // Chevron down
+                            drawLine(
+                                color = Color.White.copy(alpha = 0.6f),
+                                start = Offset(centerX - length / 2, centerY - length / 2),
+                                end = Offset(centerX, centerY + length / 2),
+                                strokeWidth = 2f
+                            )
+                            drawLine(
+                                color = Color.White.copy(alpha = 0.6f),
+                                start = Offset(centerX, centerY + length / 2),
+                                end = Offset(centerX + length / 2, centerY - length / 2),
+                                strokeWidth = 2f
+                            )
+                        }
                     }
                 }
             }
-        }
-    }
-}
 
-/**
- * Toggle preference item (e.g., Rainfall Alerts)
- */
-@Composable
-fun PreferenceToggleItem(
-    title: String,
-    isEnabled: Boolean,
-    onToggle: (Boolean) -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                color = Color(0x2F2E2E).copy(alpha = 0.68f),
-                shape = RoundedCornerShape(16.dp)
-            )
-            .padding(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = title,
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
+            // Options dropdown
+            if (expanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = Color(0x1F1F1F).copy(alpha = 0.9f),
+                            shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+                        )
+                        .padding(bottom = 8.dp)
+                ) {
+                    options.forEach { option ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onOptionSelected(option)
+                                    expanded = false
+                                }
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = option,
+                                    color = if (option == selectedValue) Color(0xFF81C784) else Color.White,
+                                    fontSize = 14.sp,
+                                    fontWeight = if (option == selectedValue) FontWeight.SemiBold else FontWeight.Normal
+                                )
 
-            Switch(
-                checked = isEnabled,
-                onCheckedChange = onToggle,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color(0xFF4CAF50),
-                    checkedTrackColor = Color(0xFF81C784),
-                    uncheckedThumbColor = Color(0xFFF4F3F4),
-                    uncheckedTrackColor = Color(0xFF767577)
-                ),
-                modifier = Modifier.padding(start = 12.dp)
-            )
-        }
-    }
-}
+                                // Checkmark for selected option
+                                if (option == selectedValue) {
+                                    Box(
+                                        modifier = Modifier.size(20.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "✓",
+                                            color = Color(0xFF81C784),
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
 
-/**
- * Slider preference item (e.g., Alert Threshold)
- */
-@Composable
-fun PreferenceSliderItem(
-    title: String,
-    value: Float,
-    onValueChange: (Float) -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                color = Color(0x2F2E2E).copy(alpha = 0.68f),
-                shape = RoundedCornerShape(16.dp)
-            )
-            .padding(16.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Header with title and value
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = title,
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
-
-                Text(
-                    text = "${value.toInt()}%",
-                    color = Color.White.copy(alpha = 0.6f),
-                    fontSize = 13.sp
-                )
-            }
-
-            // Slider
-            Slider(
-                value = value,
-                onValueChange = onValueChange,
-                valueRange = 0f..100f,
-                modifier = Modifier.fillMaxWidth(),
-                colors = androidx.compose.material3.SliderDefaults.colors(
-                    thumbColor = Color(0xFF81C784),
-                    activeTrackColor = Color(0xFF81C784),
-                    inactiveTrackColor = Color.White.copy(alpha = 0.2f)
-                )
-            )
-
-            // Labels
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "0%",
-                    color = Color.White.copy(alpha = 0.5f),
-                    fontSize = 11.sp
-                )
-
-                Text(
-                    text = "100%",
-                    color = Color.White.copy(alpha = 0.5f),
-                    fontSize = 11.sp
-                )
+                        // Divider between options
+                        if (option != options.last()) {
+                            Spacer(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .background(Color.White.copy(alpha = 0.1f))
+                                    .padding(horizontal = 16.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -3062,3 +3112,92 @@ fun LoginScreen(
     }
 }
 
+/**
+ * Convert metrics from Celsius/mbar to user's preferred units
+ */
+fun convertMetricsToUserUnits(
+    metrics: List<Metric>,
+    settings: com.juanweather.data.models.AppSettings?
+): List<Metric> {
+    if (settings == null) return metrics
+
+    return metrics.map { metric ->
+        when (metric.label) {
+            "REAL FEEL" -> {
+                // Extract temperature value (assuming format "24°C")
+                val tempStr = metric.value.replace("°C", "").trim()
+                val tempC = tempStr.toDoubleOrNull() ?: 24.0
+
+                val convertedValue = if (settings.temperatureUnit == "F") {
+                    val tempF = (tempC * 9/5) + 32
+                    "${tempF.toInt()}°F"
+                } else {
+                    "${tempC.toInt()}°C"
+                }
+                metric.copy(value = convertedValue)
+            }
+            "PRESSURE" -> {
+                // Extract pressure value (assuming format "1008mbar")
+                val pressureStr = metric.value.replace("mbar", "").trim()
+                val pressureMb = pressureStr.toDoubleOrNull() ?: 1008.0
+
+                val convertedValue = if (settings.pressureUnit == "inHg") {
+                    val pressureInHg = pressureMb * 0.02953
+                    String.format("%.2f inHg", pressureInHg)
+                } else {
+                    "${pressureMb.toInt()} mb"
+                }
+                metric.copy(value = convertedValue)
+            }
+            else -> metric
+        }
+    }
+}
+
+/**
+ * Convert temperature from Celsius to user's preferred unit
+ */
+fun convertTemperature(celsius: Double, isFahrenheit: Boolean): String {
+    return if (isFahrenheit) {
+        val fahrenheit = (celsius * 9/5) + 32
+        "${fahrenheit.toInt()}°F"
+    } else {
+        "${celsius.toInt()}°C"
+    }
+}
+
+/**
+ * Convert wind speed from km/h to user's preferred unit
+ */
+fun convertWindSpeed(kmh: Double, toMph: Boolean): String {
+    return if (toMph) {
+        val mph = kmh * 0.621371
+        String.format("%.1f mph", mph)
+    } else {
+        "${kmh.toInt()} km/h"
+    }
+}
+
+/**
+ * Convert pressure from mb to user's preferred unit
+ */
+fun convertPressure(mb: Double, toInHg: Boolean): String {
+    return if (toInHg) {
+        val inHg = mb * 0.02953
+        String.format("%.2f inHg", inHg)
+    } else {
+        "${mb.toInt()} mb"
+    }
+}
+
+/**
+ * Convert visibility from km to user's preferred unit
+ */
+fun convertVisibility(km: Double, toMiles: Boolean): String {
+    return if (toMiles) {
+        val miles = km * 0.621371
+        String.format("%.1f mi", miles)
+    } else {
+        "${km.toInt()} km"
+    }
+}
