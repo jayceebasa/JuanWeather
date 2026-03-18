@@ -109,7 +109,9 @@ class LocationViewModel(
 
     private suspend fun fetchWeatherForLocations(locations: List<UserLocation>) {
         _isLoading.value = true
-        val cards = locations.mapNotNull { loc ->
+        // Filter out locations with blank cityName or userId <= 0
+        val validLocations = locations.filter { it.cityName.isNotBlank() && it.userId > 0 }
+        val cards = validLocations.mapNotNull { loc ->
             try {
                 val response = weatherRepository.getWeatherForCity(loc.cityName)
                 val today = response.forecast?.forecastDay?.firstOrNull()?.day

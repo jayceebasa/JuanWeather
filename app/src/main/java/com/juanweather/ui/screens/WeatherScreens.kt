@@ -1701,7 +1701,8 @@ fun AddLocationScreen(
     onBack: () -> Unit,
     locationViewModel: com.juanweather.viewmodel.LocationViewModel? = null,
     onLocationSelected: ((LocationWeather) -> Unit)? = null,
-    userId: Int = 0
+    userId: Int = 0,
+    temperatureUnit: String = "C" // <-- Add this parameter
 ) {
     val locationCards = locationViewModel?.locationCards?.collectAsState()?.value ?: emptyList()
     val isLoading     = locationViewModel?.isLoading?.collectAsState()?.value    ?: false
@@ -1808,7 +1809,8 @@ fun AddLocationScreen(
                         onDelete = { locationViewModel?.deleteLocation(location.locationId) },
                         onClick  = if (onLocationSelected != null) {
                             { onLocationSelected(location) }
-                        } else null
+                        } else null,
+                        temperatureUnit = temperatureUnit // <-- Use the parameter here
                     )
                 }
             }
@@ -1926,7 +1928,15 @@ fun AddLocationScreen(
  * Location Weather Card Component
  */
 @Composable
-fun LocationWeatherCard(location: LocationWeather, onDelete: () -> Unit = {}, onClick: (() -> Unit)? = null) {
+fun LocationWeatherCard(
+    location: LocationWeather,
+    onDelete: () -> Unit = {},
+    onClick: (() -> Unit)? = null,
+    temperatureUnit: String = "C" // Default to Celsius if not provided
+) {
+    val isFahrenheit = temperatureUnit == "F"
+    val displayTemp = try { convertTemperature(location.temp.toDouble(), isFahrenheit) } catch (_: Exception) { "${location.temp}°" }
+    val displayHighTemp = try { convertTemperature(location.highTemp.toDouble(), isFahrenheit) } catch (_: Exception) { "H:${location.highTemp}°" }
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -1947,9 +1957,9 @@ fun LocationWeatherCard(location: LocationWeather, onDelete: () -> Unit = {}, on
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(text = location.city, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
-                Text(text = "${location.temp}°", color = Color.White, fontSize = 80.sp, fontWeight = FontWeight.Thin, lineHeight = 85.sp)
+                Text(text = displayTemp, color = Color.White, fontSize = 80.sp, fontWeight = FontWeight.Thin, lineHeight = 85.sp)
                 Text(text = location.condition, color = Color.White.copy(alpha = 0.75f), fontSize = 16.sp)
-                Text(text = "H:${location.highTemp}°", color = Color.White.copy(alpha = 0.7f), fontSize = 16.sp)
+                Text(text = displayHighTemp, color = Color.White.copy(alpha = 0.7f), fontSize = 16.sp)
             }
             // Delete button — wired to onDelete callback
             Box(
@@ -2747,14 +2757,16 @@ fun SettingsTileWithOptions(
                             drawLine(
                                 color = Color.White.copy(alpha = 0.6f),
                                 start = Offset(centerX - length / 2, centerY - length / 2),
-                                end = Offset(centerX, centerY + length / 2),
-                                strokeWidth = 2f
+                                end = Offset(centerX + length / 2, centerY),
+                                strokeWidth = 2f,
+                                alpha = 0.5f
                             )
                             drawLine(
                                 color = Color.White.copy(alpha = 0.6f),
-                                start = Offset(centerX, centerY + length / 2),
-                                end = Offset(centerX + length / 2, centerY - length / 2),
-                                strokeWidth = 2f
+                                start = Offset(centerX + length / 2, centerY),
+                                end = Offset(centerX - length / 2, centerY + length / 2),
+                                strokeWidth = 2f,
+                                alpha = 0.5f
                             )
                         }
                     }
@@ -3201,3 +3213,4 @@ fun convertVisibility(km: Double, toMiles: Boolean): String {
         "${km.toInt()} km"
     }
 }
+
