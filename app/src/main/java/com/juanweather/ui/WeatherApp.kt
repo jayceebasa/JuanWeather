@@ -199,6 +199,7 @@ fun WeatherApp() {
         }
 
         AppScreen.AddLocation -> {
+            val settings by settingsViewModel.settings.collectAsState()
             AddLocationScreen(
                 onBack = {
                     navigationController.navigateBack()
@@ -206,6 +207,7 @@ fun WeatherApp() {
                 },
                 locationViewModel = locationViewModel,
                 userId = authViewModel.loggedInUser.value?.id ?: 0,
+                temperatureUnit = settings?.temperatureUnit ?: "C",
                 onLocationSelected = { selectedLocation ->
                     val currentHomeCity = weatherViewModel.currentCity.value
                     locationViewModel.swapWithHomeLocation(

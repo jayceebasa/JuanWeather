@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -55,6 +57,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -1765,12 +1768,13 @@ fun AddLocationScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 12.dp, top = 16.dp, end = 12.dp)
+                    .heightIn(min = 48.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
                     .clickable { onBack() },
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
@@ -1781,26 +1785,49 @@ fun AddLocationScreen(
                         drawLine(color = Color.White, start = Offset(centerX - length / 2, centerY), end = Offset(centerX + length / 2, centerY + length / 2), strokeWidth = 2.2f)
                     }
                 }
-                Text(text = "Previous", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 8.dp))
+                Text(
+                    text = "Previous",
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Loading indicator
             if (isLoading) {
-                Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     androidx.compose.material3.CircularProgressIndicator(color = Color.White)
                 }
             }
 
             // Location cards from Room
             Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 if (locationCards.isEmpty() && !isLoading) {
-                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
-                        Text(text = "No locations saved yet.\nTap + to add your first location.", color = Color.White.copy(alpha = 0.6f), textAlign = TextAlign.Center, fontSize = 15.sp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No locations saved yet.\nTap + to add your first location.",
+                            color = Color.White.copy(alpha = 0.6f),
+                            textAlign = TextAlign.Center,
+                            fontSize = 14.sp
+                        )
                     }
                 }
                 locationCards.forEach { location ->
@@ -1819,11 +1846,15 @@ fun AddLocationScreen(
 
             // ADD LOCATION button
             Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
-                    modifier = Modifier.size(40.dp).clickable { showAddDialog.value = true },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clickable { showAddDialog.value = true },
                     contentAlignment = Alignment.Center
                 ) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
@@ -1834,8 +1865,14 @@ fun AddLocationScreen(
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(text = "ADD LOCATION", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp,
-                    modifier = Modifier.clickable { showAddDialog.value = true })
+                Text(
+                    text = "ADD LOCATION",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.8.sp,
+                    modifier = Modifier.clickable { showAddDialog.value = true }
+                )
             }
 
             Spacer(modifier = Modifier.height(30.dp))
@@ -1851,11 +1888,12 @@ fun AddLocationScreen(
             }) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .fillMaxWidth(0.9f)
+                        .wrapContentHeight()
                         .background(Color(0xFF1E1E1E), RoundedCornerShape(20.dp))
-                        .padding(24.dp)
+                        .padding(horizontal = 24.dp, vertical = 24.dp)
                 ) {
-                    Column {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Text("Add Location", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(16.dp))
                         Text("Enter a city name", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
@@ -1870,7 +1908,9 @@ fun AddLocationScreen(
                             },
                             placeholder = { Text("e.g. Manila, Tagaytay", color = Color.White.copy(alpha = 0.4f)) },
                             singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp),
                             isError = inputError.value != null,
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor   = Color.White.copy(alpha = 0.1f),
@@ -1892,7 +1932,13 @@ fun AddLocationScreen(
 
                         val isAdding = addResult is com.juanweather.viewmodel.LocationViewModel.AddResult.Loading
 
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Button(
                                 onClick = {
                                     showAddDialog.value = false
@@ -1900,14 +1946,18 @@ fun AddLocationScreen(
                                     inputError.value = null
                                     locationViewModel?.resetAddResult()
                                 },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .heightIn(min = 48.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
                                 shape = RoundedCornerShape(10.dp)
                             ) { Text("Cancel", color = Color.White) }
 
                             Button(
                                 onClick = { if (!isAdding) locationViewModel?.addLocation(cityInput.value) },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .heightIn(min = 48.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF81C784)),
                                 shape = RoundedCornerShape(10.dp),
                                 enabled = !isAdding
@@ -1942,28 +1992,65 @@ fun LocationWeatherCard(
             .fillMaxWidth()
             .background(color = Color(0x2F2E2E).copy(alpha = 0.68f), shape = RoundedCornerShape(20.dp))
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
-            .padding(18.dp)
+            .padding(12.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Box(modifier = Modifier.size(100.dp), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .padding(end = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 WeatherIconLarge(iconType = location.icon)
             }
             Column(
-                modifier = Modifier.weight(1f).padding(start = 16.dp, end = 64.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier
+                    .weight(1f)
+                    .wrapContentHeight()
+                    .padding(start = 8.dp, end = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Text(text = location.city, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
-                Text(text = displayTemp, color = Color.White, fontSize = 80.sp, fontWeight = FontWeight.Thin, lineHeight = 85.sp)
-                Text(text = location.condition, color = Color.White.copy(alpha = 0.75f), fontSize = 16.sp)
-                Text(text = displayHighTemp, color = Color.White.copy(alpha = 0.7f), fontSize = 16.sp)
+                Text(
+                    text = location.city,
+                    color = Color.White,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = displayTemp,
+                    color = Color.White,
+                    fontSize = 56.sp,
+                    fontWeight = FontWeight.Thin,
+                    lineHeight = 60.sp
+                )
+                Text(
+                    text = location.condition,
+                    color = Color.White.copy(alpha = 0.75f),
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = displayHighTemp,
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 13.sp
+                )
             }
             // Delete button — wired to onDelete callback
             Box(
-                modifier = Modifier.size(32.dp).clickable { onDelete() },
+                modifier = Modifier
+                    .size(36.dp)
+                    .clickable { onDelete() }
+                    .padding(4.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Canvas(modifier = Modifier.fillMaxSize().alpha(0.6f)) {
