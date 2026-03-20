@@ -1,6 +1,7 @@
 package com.juanweather.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -81,6 +82,19 @@ fun WeatherApp() {
     val context = LocalContext.current
     val app = context.applicationContext as JuanWeatherApp
 
+    // Configure Twilio credentials on app startup (one-time)
+    LaunchedEffect(Unit) {
+        if (!app.isTwilioConfigured()) {
+            // Set up test credentials for trial account
+            app.configureTwilio(
+                accountSid = "ACf729fe5a4be5fac79f99c2ee5ef5ee86",
+                authToken = "51bd5687e0d582d75e9b501c575d0959",
+                messagingServiceSid = "MGbef6a3906dcfd2c1d3b2d0bdb38d667a",
+                phoneNumber = "+13657964677"  // Your Twilio phone number (Canadian)
+            )
+        }
+    }
+
     // Build AuthViewModel with Room-backed repository
     val authViewModel: AuthViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
@@ -140,6 +154,21 @@ fun WeatherApp() {
         }
     )
 
+    // Build SOSViewModel — SOS alert management with Twilio integration
+    val sosViewModel: com.juanweather.viewmodel.SOSViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return com.juanweather.viewmodel.SOSViewModel(
+                    app.hybridSOSRepository,
+                    com.juanweather.utils.TwilioSmsService(context),
+                    app.twilioConfig,
+                    com.juanweather.utils.LocationManager(context)
+                ) as T
+            }
+        }
+    )
+
     val navigationController = remember { NavigationController() }
     val currentScreen = remember { mutableStateOf(AppScreen.Login) }
 
@@ -158,6 +187,9 @@ fun WeatherApp() {
 
                     // Sync settings from Firebase to Room on login
                     settingsViewModel.syncSettingsOnLogin(userId, firebaseUid)
+
+                    // Sync SOS settings from Firebase to Room on login
+                    sosViewModel.syncSOSSettingsOnLogin(firebaseUid)
 
                     locationViewModel.loadLocationsForUser(userId, firebaseUid) { firstLocationCity ->
                         // Auto-load the first location on the homepage
@@ -287,7 +319,10 @@ fun WeatherApp() {
         }
 
         AppScreen.SOSSettings -> {
+            val emergencyContacts = emergencyContactViewModel.contacts.collectAsState(emptyList()).value
             SOSSettingsScreen(
+                viewModel = sosViewModel,
+                emergencyContacts = emergencyContacts,
                 onBack = {
                     navigationController.navigateBack()
                     currentScreen.value = navigationController.getCurrentScreen()

@@ -10,10 +10,11 @@ import com.juanweather.data.models.User
 import com.juanweather.data.models.UserLocation
 import com.juanweather.data.models.AppSettings
 import com.juanweather.data.models.EmergencyContact
+import com.juanweather.data.models.SOSSettings
 
 @Database(
-    entities = [User::class, UserLocation::class, AppSettings::class, EmergencyContact::class],
-    version = 5,
+    entities = [User::class, UserLocation::class, AppSettings::class, EmergencyContact::class, SOSSettings::class],
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -22,6 +23,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userLocationDao(): UserLocationDao
     abstract fun appSettingsDao(): AppSettingsDao
     abstract fun emergencyContactDao(): EmergencyContactDao
+    abstract fun sosSettingsDao(): SOSSettingsDao
 
     companion object {
         @Volatile
@@ -87,6 +89,25 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Migration from v5 → v6: create the sos_settings table
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS sos_settings (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        enableLocationSharing INTEGER NOT NULL DEFAULT 1,
+                        messageTemplate TEXT NOT NULL DEFAULT 'I need help. This is an emergency SOS alert from JuanWeather.',
+                        lastSentTime INTEGER NOT NULL DEFAULT 0,
+                        twilioAccountSid TEXT NOT NULL DEFAULT '',
+                        twilioAuthToken TEXT NOT NULL DEFAULT '',
+                        twilioPhoneNumber TEXT NOT NULL DEFAULT ''
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -94,7 +115,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "juanweather.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build()
                 INSTANCE = instance
                 instance

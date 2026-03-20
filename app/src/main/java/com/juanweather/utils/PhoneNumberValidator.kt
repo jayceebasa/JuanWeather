@@ -1,25 +1,25 @@
 package com.juanweather.utils
 
 /**
- * Utility for validating Philippine phone numbers
+ * Utility for validating phone numbers (supports both Philippine and international numbers)
  */
 object PhoneNumberValidator {
 
     /**
-     * Validates if a phone number is a valid Philippine SIM number
+     * Validates if a phone number is valid (Philippine or international)
      *
      * Accepted formats:
-     * - +639XXXXXXXXX (11 digits with +63 prefix)
-     * - 09XXXXXXXXX (11 digits starting with 0)
-     * - 9XXXXXXXXX (10 digits, assumes +63)
+     * - Philippine: +639XXXXXXXXX, 09XXXXXXXXX, or 9XXXXXXXXX
+     * - International: +1 to +999 with at least 6 digits after country code
      *
      * @param phoneNumber The phone number to validate
-     * @return true if valid Philippine phone number, false otherwise
+     * @return true if valid phone number, false otherwise
      */
     fun isValidPhilippineNumber(phoneNumber: String): Boolean {
-        // Remove spaces and hyphens
+        // Remove spaces and hyphens for validation
         val cleanNumber = phoneNumber.trim().replace(" ", "").replace("-", "")
 
+        // Check if it's a Philippine number
         return when {
             // Format: +639XXXXXXXXX (11 digits with country code)
             cleanNumber.startsWith("+63") -> {
@@ -34,26 +34,39 @@ object PhoneNumberValidator {
             cleanNumber.startsWith("9") && !cleanNumber.startsWith("0") -> {
                 cleanNumber.length == 10 && cleanNumber.all { it.isDigit() }
             }
+            // International format: +X to +999 with at least 6 digits after country code
+            cleanNumber.startsWith("+") -> {
+                val phoneDigitsStart = cleanNumber.indexOfFirst { it.isDigit() }
+                if (phoneDigitsStart != -1) {
+                    val phoneDigits = cleanNumber.substring(phoneDigitsStart)
+                    phoneDigits.all { it.isDigit() } && phoneDigits.length >= 6
+                } else {
+                    false
+                }
+            }
             else -> false
         }
     }
 
     /**
-     * Formats a Philippine phone number to standard format
-     * Converts to 09XXXXXXXXX format
+     * Formats a phone number for Twilio SMS (E.164 format)
+     * If the number has a country code, use it as-is
+     * If it's a Philippine number without +63, add it
      *
      * @param phoneNumber The phone number to format
-     * @return Formatted number or original if invalid
+     * @return Formatted number in E.164 format or original if it's already international
      */
     fun formatPhilippineNumber(phoneNumber: String): String {
         val cleanNumber = phoneNumber.trim().replace(" ", "").replace("-", "")
 
         return when {
-            cleanNumber.startsWith("+63") -> {
-                "0" + cleanNumber.removePrefix("+63")
-            }
-            cleanNumber.startsWith("0") -> cleanNumber
-            cleanNumber.startsWith("9") -> "0$cleanNumber"
+            // Already in international format
+            cleanNumber.startsWith("+") -> cleanNumber
+            // Philippine format: 09XXXXXXXXX
+            cleanNumber.startsWith("09") -> "+63" + cleanNumber.substring(1)
+            // Philippine format: 9XXXXXXXXX
+            cleanNumber.startsWith("9") -> "+63$cleanNumber"
+            // Fallback: assume it's a number and return as-is
             else -> phoneNumber
         }
     }
@@ -72,7 +85,7 @@ object PhoneNumberValidator {
             !cleanNumber.all { it.isDigit() || it == '+' || it == ' ' || it == '-' } ->
                 "Phone number contains invalid characters"
             !isValidPhilippineNumber(phoneNumber) ->
-                "Please enter a valid Philippine phone number (09XXXXXXXXX, +639XXXXXXXXX, or 9XXXXXXXXX)"
+                "Please enter a valid phone number (Philippine: 09XXXXXXXXX, +639XXXXXXXXX, or international: +1 to +999 with at least 6 digits)"
             else -> "Invalid phone number"
         }
     }

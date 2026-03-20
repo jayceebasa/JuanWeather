@@ -45,6 +45,12 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+
+    packaging {
+        resources {
+            excludes += "META-INF/DEPENDENCIES"
+        }
+    }
 }
 
 dependencies {
@@ -103,6 +109,7 @@ dependencies {
 
     // Preferences
     implementation("androidx.datastore:datastore-preferences:1.0.0")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     // Work Manager
     implementation("androidx.work:work-runtime-ktx:2.8.1")
@@ -124,5 +131,8 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics-ktx")
     implementation("com.google.firebase:firebase-crashlytics-ktx")
     testImplementation("com.google.firebase:firebase-firestore-ktx:25.1.0") // For testing
+
+    // Twilio SMS
+    implementation("com.twilio.sdk:twilio:9.2.0")
 
 }

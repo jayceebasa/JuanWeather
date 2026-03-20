@@ -27,6 +27,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -1388,10 +1389,25 @@ fun EditContactDialog(
  */
 @Composable
 fun SOSSettingsScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    viewModel: com.juanweather.viewmodel.SOSViewModel? = null,
+    emergencyContacts: List<com.juanweather.data.models.EmergencyContact> = emptyList()
 ) {
-    val toggleLocation = remember { mutableStateOf(true) }
-    val messageTemplate = remember { mutableStateOf("My name is...") }
+    val toggleLocation = viewModel?.toggleLocation?.collectAsState()?.value ?: true
+    val messageTemplate = viewModel?.messageTemplate?.collectAsState()?.value ?: "I need help. This is an emergency SOS alert from JuanWeather."
+    val isLoading = viewModel?.isLoading?.collectAsState()?.value ?: false
+    val errorMessage = viewModel?.errorMessage?.collectAsState()?.value
+    val successMessage = viewModel?.successMessage?.collectAsState()?.value
+    val showSuccessDialog = remember { mutableStateOf(false) }
+
+    LaunchedEffect(successMessage) {
+        if (successMessage != null) {
+            showSuccessDialog.value = true
+            delay(2000)
+            showSuccessDialog.value = false
+            viewModel?.clearMessages()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -1479,6 +1495,28 @@ fun SOSSettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Error message display
+            if (errorMessage != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .background(
+                            color = Color(0xFFBA1E1E).copy(alpha = 0.3f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = errorMessage,
+                        color = Color(0xFFFF6B6B),
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1508,8 +1546,10 @@ fun SOSSettingsScreen(
                         )
 
                         Switch(
-                            checked = toggleLocation.value,
-                            onCheckedChange = { toggleLocation.value = it },
+                            checked = toggleLocation,
+                            onCheckedChange = { newValue ->
+                                viewModel?.updateLocationSharing(newValue)
+                            },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color(0xFF4CAF50),
                                 checkedTrackColor = Color(0xFF81C784),
@@ -1552,7 +1592,7 @@ fun SOSSettingsScreen(
                                 .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             Text(
-                                text = messageTemplate.value,
+                                text = messageTemplate.take(30) + if (messageTemplate.length > 30) "..." else "",
                                 color = Color.White.copy(alpha = 0.6f),
                                 fontSize = 12.sp,
                                 maxLines = 1
@@ -1563,8 +1603,10 @@ fun SOSSettingsScreen(
 
                 // Message Input
                 androidx.compose.material3.TextField(
-                    value = messageTemplate.value,
-                    onValueChange = { messageTemplate.value = it },
+                    value = messageTemplate,
+                    onValueChange = { newMessage ->
+                        viewModel?.updateMessageTemplate(newMessage)
+                    },
                     placeholder = {
                         Text(
                             "Enter message template",
@@ -1585,33 +1627,136 @@ fun SOSSettingsScreen(
                         unfocusedTextColor = Color.White,
                         cursorColor = Color.White
                     ),
-                    singleLine = true
+                    singleLine = false,
+                    minLines = 3,
+                    maxLines = 5
                 )
+
+                // Emergency Contacts Count
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = Color(0x2F2E2E).copy(alpha = 0.68f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .padding(16.dp)
+                ) {
+                    Column {
+                        Text(
+                            text = "Emergency Contacts (${emergencyContacts.size})",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        if (emergencyContacts.isNotEmpty()) {
+                            emergencyContacts.take(3).forEach { contact ->
+                                Text(
+                                    text = "• ${contact.name} - ${contact.phoneNumber}",
+                                    color = Color.White.copy(alpha = 0.7f),
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+                            }
+                            if (emergencyContacts.size > 3) {
+                                Text(
+                                    text = "...and ${emergencyContacts.size - 3} more",
+                                    color = Color.White.copy(alpha = 0.5f),
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = "No emergency contacts added. Please add contacts to enable SOS.",
+                                color = Color(0xFFFF6B6B),
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp
+                            )
+                        }
+                    }
+                }
 
                 // Send Text SOS Button
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            color = Color(0xFFBA1E1E).copy(alpha = 0.79f),
+                            color = if (emergencyContacts.isEmpty() || isLoading)
+                                Color(0xFFBA1E1E).copy(alpha = 0.5f)
+                            else
+                                Color(0xFFBA1E1E).copy(alpha = 0.79f),
                             shape = RoundedCornerShape(14.dp)
                         )
-                        .clickable { }
+                        .clickable(
+                            enabled = emergencyContacts.isNotEmpty() && !isLoading
+                        ) {
+                            // Convert phone numbers to E.164 format for Twilio
+                            val formattedNumbers = emergencyContacts.map { contact ->
+                                PhoneNumberValidator.formatPhilippineNumber(contact.phoneNumber)
+                            }
+                            viewModel?.sendSOS(
+                                formattedNumbers,
+                                includeLocation = toggleLocation
+                            )
+                        }
                         .padding(vertical = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Send Text SOS",
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 0.5.sp
-                    )
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = "Send SOS Alert",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(30.dp))
         }
+    }
+
+    // Success Dialog
+    if (showSuccessDialog.value && successMessage != null) {
+        AlertDialog(
+            onDismissRequest = { showSuccessDialog.value = false },
+            confirmButton = {
+                Button(
+                    onClick = { showSuccessDialog.value = false },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF4CAF50)
+                    )
+                ) {
+                    Text("OK", color = Color.White)
+                }
+            },
+            title = {
+                Text(
+                    "Success",
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            text = {
+                Text(
+                    successMessage,
+                    color = Color.White
+                )
+            },
+            containerColor = Color(0xFF2F2E2E).copy(alpha = 0.95f),
+            textContentColor = Color.White
+        )
     }
 }
 
