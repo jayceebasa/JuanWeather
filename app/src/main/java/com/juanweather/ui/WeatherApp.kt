@@ -22,6 +22,8 @@ import com.juanweather.ui.screens.WeatherPreferencesScreen
 import com.juanweather.viewmodel.AuthViewModel
 import com.juanweather.viewmodel.LocationViewModel
 import com.juanweather.viewmodel.WeatherViewModel
+import com.juanweather.viewmodel.EmergencyContactViewModel
+import com.juanweather.data.repository.HybridEmergencyContactRepository
 
 /**
  * Enumeration for different app screens
@@ -121,6 +123,18 @@ fun WeatherApp() {
                 return com.juanweather.viewmodel.SettingsViewModel(
                     app.preferencesHelper,
                     app.settingsRepository
+                ) as T
+            }
+        }
+    )
+
+    // Build EmergencyContactViewModel — Hybrid Firestore + Room caching
+    val emergencyContactViewModel: EmergencyContactViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return EmergencyContactViewModel(
+                    app.hybridEmergencyContactRepository
                 ) as T
             }
         }
@@ -264,6 +278,7 @@ fun WeatherApp() {
 
         AppScreen.EmergencyContact -> {
             EmergencyContactScreen(
+                viewModel = emergencyContactViewModel,
                 onBack = {
                     navigationController.navigateBack()
                     currentScreen.value = navigationController.getCurrentScreen()

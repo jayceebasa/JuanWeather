@@ -26,6 +26,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -63,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.juanweather.R
+import kotlinx.coroutines.flow.flowOf
 import com.juanweather.ui.components.CloudIcon
 import com.juanweather.ui.components.CloudRainIcon
 import com.juanweather.ui.components.SettingsIcon
@@ -621,16 +623,24 @@ data class EmergencyContactItem(
  */
 @Composable
 fun EmergencyContactScreen(
+    viewModel: com.juanweather.viewmodel.EmergencyContactViewModel? = null,
     onBack: () -> Unit
 ) {
-    val contacts = remember {
-        listOf(
-            EmergencyContactItem("1", "Mj Bautista", "09165543123"),
-            EmergencyContactItem("2", "Juan Carlos Basa", "09165543123"),
-            EmergencyContactItem("3", "Charles Medel", "09165543123"),
-            EmergencyContactItem("4", "Frances Balgos", "09165543123")
+    // Collect contacts from ViewModel if available
+    val defaultEmptyFlow = remember {
+        kotlinx.coroutines.flow.flowOf(emptyList<com.juanweather.data.models.EmergencyContact>())
+    }
+    val contactsState by (viewModel?.contacts ?: defaultEmptyFlow).collectAsState(emptyList())
+
+    val contacts = contactsState.map {
+        EmergencyContactItem(
+            id = it.id,
+            name = it.name,
+            phone = it.phoneNumber
         )
     }
+
+    val showAddContactDialog = remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -734,7 +744,8 @@ fun EmergencyContactScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = 20.dp)
+                    .clickable { showAddContactDialog.value = true },
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
@@ -779,6 +790,14 @@ fun EmergencyContactScreen(
             }
 
             Spacer(modifier = Modifier.height(30.dp))
+        }
+
+        // Add Contact Dialog
+        if (showAddContactDialog.value) {
+            AddContactDialog(
+                viewModel = viewModel,
+                onDismiss = { showAddContactDialog.value = false }
+            )
         }
     }
 }
@@ -879,6 +898,152 @@ fun ContactItemCard(contact: EmergencyContactItem) {
             }
         }
     }
+}
+
+/**
+ * Dialog for adding a new emergency contact
+ */
+@Composable
+fun AddContactDialog(
+    viewModel: com.juanweather.viewmodel.EmergencyContactViewModel? = null,
+    onDismiss: () -> Unit
+) {
+    val contactName = remember { mutableStateOf("") }
+    val contactPhone = remember { mutableStateOf("") }
+    val contactRelationship = remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Add Emergency Contact",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Contact Name Field
+                TextField(
+                    value = contactName.value,
+                    onValueChange = { contactName.value = it },
+                    label = {
+                        Text(
+                            text = "Name",
+                            color = Color.White.copy(alpha = 0.6f)
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    colors = androidx.compose.material3.TextFieldDefaults.colors(
+                        focusedContainerColor = Color(0xFF2F2E2E).copy(alpha = 0.68f),
+                        unfocusedContainerColor = Color(0xFF2F2E2E).copy(alpha = 0.68f),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedLabelColor = Color.White,
+                        unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
+                        cursorColor = Color.White
+                    ),
+                    singleLine = true
+                )
+
+                // Contact Phone Field
+                TextField(
+                    value = contactPhone.value,
+                    onValueChange = { contactPhone.value = it },
+                    label = {
+                        Text(
+                            text = "Phone Number",
+                            color = Color.White.copy(alpha = 0.6f)
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    colors = androidx.compose.material3.TextFieldDefaults.colors(
+                        focusedContainerColor = Color(0xFF2F2E2E).copy(alpha = 0.68f),
+                        unfocusedContainerColor = Color(0xFF2F2E2E).copy(alpha = 0.68f),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedLabelColor = Color.White,
+                        unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
+                        cursorColor = Color.White
+                    ),
+                    singleLine = true
+                )
+
+                // Contact Relationship Field
+                TextField(
+                    value = contactRelationship.value,
+                    onValueChange = { contactRelationship.value = it },
+                    label = {
+                        Text(
+                            text = "Relationship",
+                            color = Color.White.copy(alpha = 0.6f)
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    colors = androidx.compose.material3.TextFieldDefaults.colors(
+                        focusedContainerColor = Color(0xFF2F2E2E).copy(alpha = 0.68f),
+                        unfocusedContainerColor = Color(0xFF2F2E2E).copy(alpha = 0.68f),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedLabelColor = Color.White,
+                        unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
+                        cursorColor = Color.White
+                    ),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (contactName.value.isNotBlank() && contactPhone.value.isNotBlank()) {
+                        val newContact = com.juanweather.data.models.EmergencyContact(
+                            id = java.util.UUID.randomUUID().toString(),
+                            name = contactName.value,
+                            phoneNumber = contactPhone.value,
+                            relationship = contactRelationship.value
+                        )
+                        viewModel?.addContact(newContact)
+                        onDismiss()
+                    }
+                },
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF81C784)
+                )
+            ) {
+                Text(
+                    text = "Add",
+                    color = Color.Black,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        },
+        dismissButton = {
+            Button(
+                onClick = onDismiss,
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = Color.Gray
+                )
+            ) {
+                Text(
+                    text = "Cancel",
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        },
+        containerColor = Color(0xFF2F2E2E).copy(alpha = 0.95f),
+        textContentColor = Color.White
+    )
 }
 
 /**

@@ -9,10 +9,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.juanweather.data.models.User
 import com.juanweather.data.models.UserLocation
 import com.juanweather.data.models.AppSettings
+import com.juanweather.data.models.EmergencyContact
 
 @Database(
-    entities = [User::class, UserLocation::class, AppSettings::class],
-    version = 4,
+    entities = [User::class, UserLocation::class, AppSettings::class, EmergencyContact::class],
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -20,6 +21,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun userLocationDao(): UserLocationDao
     abstract fun appSettingsDao(): AppSettingsDao
+    abstract fun emergencyContactDao(): EmergencyContactDao
 
     companion object {
         @Volatile
@@ -69,6 +71,22 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Migration from v4 → v5: create the emergency_contacts table (cache for Firestore)
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS emergency_contacts (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        name TEXT NOT NULL,
+                        phoneNumber TEXT NOT NULL,
+                        relationship TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -76,7 +94,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "juanweather.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                 INSTANCE = instance
                 instance

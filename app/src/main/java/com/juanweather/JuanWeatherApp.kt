@@ -8,6 +8,7 @@ import com.juanweather.data.remote.ApiClient
 import com.juanweather.data.repository.UserRepository
 import com.juanweather.data.repository.WeatherRepository
 import com.juanweather.data.repository.SettingsRepository
+import com.juanweather.data.repository.HybridEmergencyContactRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -19,8 +20,10 @@ class JuanWeatherApp : Application() {
     val weatherRepository by lazy { WeatherRepository(ApiClient.getWeatherService()) }
     val userLocationDao by lazy { database.userLocationDao() }
     val appSettingsDao by lazy { database.appSettingsDao() }
+    val emergencyContactDao by lazy { database.emergencyContactDao() }
     val preferencesHelper by lazy { PreferencesHelper(this) }
     val settingsRepository by lazy { SettingsRepository(appSettingsDao) }
+    val hybridEmergencyContactRepository by lazy { HybridEmergencyContactRepository(emergencyContactDao) }
 
     companion object {
         lateinit var instance: JuanWeatherApp
