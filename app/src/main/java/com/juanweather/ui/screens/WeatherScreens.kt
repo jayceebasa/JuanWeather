@@ -2599,17 +2599,22 @@ fun AddLocationScreen(
                                     .weight(1f)
                                     .heightIn(min = 48.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
-                                shape = RoundedCornerShape(10.dp)
+                                shape = RoundedCornerShape(10.dp),
+                                enabled = !isAdding
                             ) { Text("Cancel", color = Color.White) }
 
                             Button(
-                                onClick = { if (!isAdding) locationViewModel?.addLocation(cityInput.value) },
+                                onClick = {
+                                    if (!isAdding && cityInput.value.isNotBlank()) {
+                                        locationViewModel?.addLocation(cityInput.value.trim())
+                                    }
+                                },
                                 modifier = Modifier
                                     .weight(1f)
                                     .heightIn(min = 48.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF81C784)),
                                 shape = RoundedCornerShape(10.dp),
-                                enabled = !isAdding
+                                enabled = !isAdding && cityInput.value.isNotBlank()
                             ) {
                                 if (isAdding) androidx.compose.material3.CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(18.dp))
                                 else Text("Add", color = Color.Black, fontWeight = FontWeight.SemiBold)

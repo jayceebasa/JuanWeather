@@ -159,7 +159,7 @@ class LocationViewModel(
         _isLoading.value = false
     }
 
-    // Add a new city — checks for duplicate first
+    // Add a new city — checks for duplicate first (case-insensitive)
     fun addLocation(cityName: String) {
         if (cityName.isBlank()) {
             _addResult.value = AddResult.Error("Please enter a city name")
@@ -172,16 +172,25 @@ class LocationViewModel(
         }
         viewModelScope.launch {
             _addResult.value = AddResult.Loading
-            // Check duplicate
-            val existing = locationDao.findLocation(currentUserId, cityName.trim())
+            val trimmedCity = cityName.trim()
+
+            // Check duplicate in Room (case-insensitive)
+            val existing = locationDao.findLocation(currentUserId, trimmedCity)
             if (existing != null) {
-                _addResult.value = AddResult.Error("${cityName.trim()} is already in your list")
+                _addResult.value = AddResult.Error("${trimmedCity} is already in your list")
                 return@launch
             }
+
+            // Also check current locationCards for duplicates (handles real-time cases)
+            if (_locationCards.value.any { it.cityName.equals(trimmedCity, ignoreCase = true) || it.city.equals(trimmedCity, ignoreCase = true) }) {
+                _addResult.value = AddResult.Error("${trimmedCity} is already in your list")
+                return@launch
+            }
+
             // Verify city exists via API before saving
             try {
-                weatherRepository.getWeatherForCity(cityName.trim())
-                val newLocation = UserLocation(userId = currentUserId, cityName = cityName.trim())
+                weatherRepository.getWeatherForCity(trimmedCity)
+                val newLocation = UserLocation(userId = currentUserId, cityName = trimmedCity)
 
                 // Save to Room (offline storage)
                 locationDao.insertLocation(newLocation)
