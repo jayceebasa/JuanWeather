@@ -52,6 +52,10 @@ class WeatherViewModel(private val repository: WeatherRepository) : ViewModel() 
     private val _errorMessage   = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
+    // Increment on each fetch to force LazyRow recomposition
+    private val _fetchId        = MutableStateFlow(0)
+    val fetchId: StateFlow<Int> = _fetchId.asStateFlow()
+
     // Called with device GPS coordinates
     fun fetchWeatherByLocation(lat: Double, lon: Double) {
         fetchWeather { repository.getWeatherForLocation(lat, lon) }
@@ -69,18 +73,31 @@ class WeatherViewModel(private val repository: WeatherRepository) : ViewModel() 
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
+            // Clear old forecast data before fetching new data
+            _hourlyForecast.value = emptyList()
+            _dailyForecast.value = emptyList()
             try {
                 val response = apiCall()
+                android.util.Log.d("WeatherViewModel", "Fetched data for: ${response.location.name}, Temp: ${response.current.tempC}°C")
+
                 _locationName.value   = response.location.name
                 _temperature.value    = "${response.current.tempC.toInt()}°C"
                 _condition.value      = response.current.condition.text
                 val today = response.forecast?.forecastDay?.firstOrNull()?.day
                 _highLow.value        = "H:${today?.maxTempC?.toInt() ?: "--"}° L:${today?.minTempC?.toInt() ?: "--"}°"
                 _chanceOfRain.value   = "${today?.chanceOfRain ?: "--"}%"
-                _hourlyForecast.value = repository.mapHourlyForecast(response)
+
+                val hourlyData = repository.mapHourlyForecast(response)
+                android.util.Log.d("WeatherViewModel", "Hourly forecast items: ${hourlyData.size}, First temp: ${hourlyData.firstOrNull()?.temperature}")
+                _hourlyForecast.value = hourlyData
+
                 _dailyForecast.value  = repository.mapDailyForecast(response)
                 _metrics.value        = repository.mapMetrics(response)
+
+                // Increment fetchId to force LazyRow recomposition
+                _fetchId.value = (_fetchId.value + 1) % Int.MAX_VALUE
             } catch (e: Exception) {
+                android.util.Log.e("WeatherViewModel", "Error fetching weather: ${e.message}")
                 _errorMessage.value = "Failed to load weather: ${e.message}"
             } finally {
                 _isLoading.value = false

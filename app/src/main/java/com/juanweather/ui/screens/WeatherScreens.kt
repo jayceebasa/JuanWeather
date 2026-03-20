@@ -101,6 +101,7 @@ fun WeatherDashboardScreen(
     val chanceOfRain  = weatherViewModel?.chanceOfRain?.collectAsState()?.value  ?: "91%"
     val isLoading     = weatherViewModel?.isLoading?.collectAsState()?.value     ?: false
     val errorMessage  = weatherViewModel?.errorMessage?.collectAsState()?.value
+    val fetchId       = weatherViewModel?.fetchId?.collectAsState()?.value       ?: 0
 
     val hourlyForecast = weatherViewModel?.hourlyForecast?.collectAsState()?.value ?: listOf(
         HourlyForecastItem("NOW",  "sun",   "19°"),
@@ -378,7 +379,7 @@ fun WeatherDashboardScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                items(hourlyForecast) { item ->
+                                items(hourlyForecast, key = { "${fetchId}-${it.time}" }) { item ->
                                     Column(
                                         modifier = Modifier
                                             .padding(4.dp)
@@ -1688,12 +1689,13 @@ fun SosSuccessDialog(
  */
 data class LocationWeather(
     val id: String,
-    val city: String,
+    val city: String,           // API-normalized city name for display
     val temp: Int,
     val condition: String,
     val highTemp: Int,
     val icon: String,
-    val locationId: Int = 0   // Room PK — used for delete
+    val locationId: Int = 0,    // Room PK — used for delete
+    val cityName: String = ""   // Original city name from user input — used for Firestore delete
 )
 
 /**
@@ -1833,7 +1835,7 @@ fun AddLocationScreen(
                 locationCards.forEach { location ->
                     LocationWeatherCard(
                         location = location,
-                        onDelete = { locationViewModel?.deleteLocation(location.locationId) },
+                        onDelete = { locationViewModel?.deleteLocation(location.locationId, location.cityName.ifBlank { location.city }) },
                         onClick  = if (onLocationSelected != null) {
                             { onLocationSelected(location) }
                         } else null,

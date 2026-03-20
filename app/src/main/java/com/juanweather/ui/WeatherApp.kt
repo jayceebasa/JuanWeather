@@ -209,14 +209,9 @@ fun WeatherApp() {
                 userId = authViewModel.loggedInUser.value?.id ?: 0,
                 temperatureUnit = settings?.temperatureUnit ?: "C",
                 onLocationSelected = { selectedLocation ->
-                    val currentHomeCity = weatherViewModel.currentCity.value
-                    locationViewModel.swapWithHomeLocation(
-                        selectedLocation  = selectedLocation,
-                        currentHomeCity   = currentHomeCity,
-                        onSwitchCity      = { newCity ->
-                            weatherViewModel.fetchWeatherByCity(newCity)
-                        }
-                    )
+                    // Use the original cityName for the API call, display the API-normalized city
+                    val cityToFetch = selectedLocation.cityName.ifBlank { selectedLocation.city }
+                    weatherViewModel.fetchWeatherByCity(cityToFetch)
                     navigationController.navigateBack()
                     currentScreen.value = navigationController.getCurrentScreen()
                 }

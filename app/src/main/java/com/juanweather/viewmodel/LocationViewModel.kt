@@ -66,6 +66,7 @@ class LocationViewModel(
      * Sync Firestore locations to Room database
      * Ensures locations saved in Firestore are available offline
      * Firestore is the source of truth - we sync from it to Room on login
+     * Also deletes from Room any locations that no longer exist in Firestore
      */
     private suspend fun syncFirestoreLocationsToRoom(userId: Int, firebaseUid: String? = null) {
         try {
@@ -81,6 +82,9 @@ class LocationViewModel(
                 if (firestoreLocations.isNotEmpty()) {
                     android.util.Log.d("LocationViewModel", "Found ${firestoreLocations.size} locations in Firestore for user $userId")
 
+                    // Get current Room locations for this user
+                    val roomLocations = locationDao.getLocationsForUserSync(userId)
+
                     // For each Firestore location, ensure it exists in Room with correct userId
                     for (firestoreLocation in firestoreLocations) {
                         // Check if location already exists in Room by cityName
@@ -93,6 +97,15 @@ class LocationViewModel(
                             android.util.Log.d("LocationViewModel", "Synced location: ${firestoreLocation.cityName} to Room")
                         } else {
                             android.util.Log.d("LocationViewModel", "Location ${firestoreLocation.cityName} already exists in Room")
+                        }
+                    }
+
+                    // Delete from Room any locations that are no longer in Firestore
+                    val firestoreCityNames = firestoreLocations.map { it.cityName }.toSet()
+                    for (roomLocation in roomLocations) {
+                        if (roomLocation.cityName !in firestoreCityNames) {
+                            locationDao.deleteLocationById(roomLocation.id)
+                            android.util.Log.d("LocationViewModel", "Deleted stale location from Room: ${roomLocation.cityName}")
                         }
                     }
                 } else {
@@ -125,7 +138,8 @@ class LocationViewModel(
                         response.current.condition.code,
                         response.current.isDay
                     ),
-                    locationId = loc.id
+                    locationId = loc.id,
+                    cityName = loc.cityName  // Store the original city name for Firestore deletion
                 )
             } catch (e: Exception) {
                 // If API fails for a city, show it with placeholder data
@@ -136,7 +150,8 @@ class LocationViewModel(
                     condition = "Unavailable",
                     highTemp  = 0,
                     icon      = "cloud",
-                    locationId = loc.id
+                    locationId = loc.id,
+                    cityName = loc.cityName
                 )
             }
         }
@@ -182,18 +197,79 @@ class LocationViewModel(
     }
 
     // Delete a location from Room and Firestore
-    fun deleteLocation(locationId: Int) {
+    fun deleteLocation(locationId: Int, cityName: String = "") {
         viewModelScope.launch {
-            // Delete from Room (offline)
-            locationDao.deleteLocationById(locationId)
+            try {
+                // First try to get the actual city name from Room if not provided
+                val cityToDelete = if (cityName.isNotBlank()) {
+                    cityName
+                } else {
+                    // Fetch from Room if we need it
+                    val location = locationDao.getLocationById(locationId)
+                    location?.cityName ?: ""
+                }
 
-            // Delete from Firestore (cloud)
-            firestoreRepository.deleteLocation(locationId)
+                // Delete from Firestore first (cloud) using cityName as query key
+                if (cityToDelete.isNotBlank()) {
+                    firestoreRepository.deleteLocation(cityToDelete)
+                }
+
+                // Then delete from Room (offline)
+                locationDao.deleteLocationById(locationId)
+
+                android.util.Log.d("LocationViewModel", "Deleted location: $cityToDelete (ID: $locationId)")
+            } catch (e: Exception) {
+                android.util.Log.e("LocationViewModel", "Error deleting location: ${e.message}", e)
+            }
+        }
+    }
+
+    /**
+     * Set a location as the current homepage/dashboard city.
+     *
+     * - The selected location becomes the new dashboard city
+     * - The selected location is removed from the saved locations list (it's now the main one)
+     * - If currentHomeCity is different, it's added to saved locations (if not already there)
+     * - [onSwitchCity] is called to update the WeatherViewModel
+     */
+    fun setLocationAsDashboard(
+        selectedLocation: com.juanweather.ui.screens.LocationWeather,
+        currentHomeCity: String,
+        onSwitchCity: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                // Use the original cityName (not API-normalized) for deletion
+                val cityToDelete = selectedLocation.cityName.ifBlank { selectedLocation.city }
+
+                // Remove the selected location from the saved list (it will become the dashboard city)
+                locationDao.deleteLocationById(selectedLocation.locationId)
+                firestoreRepository.deleteLocation(cityToDelete)
+
+                // Add the current homepage city to the saved list (skip if duplicate or blank)
+                // Note: currentHomeCity is the API-normalized name from the previous dashboard
+                if (currentHomeCity.isNotBlank() && currentHomeCity.trim() != cityToDelete.trim()) {
+                    val existing = locationDao.findLocation(currentUserId, currentHomeCity.trim())
+                    if (existing == null) {
+                        val newLocation = UserLocation(userId = currentUserId, cityName = currentHomeCity.trim())
+                        locationDao.insertLocation(newLocation)
+                        firestoreRepository.addLocation(newLocation)
+                        android.util.Log.d("LocationViewModel", "Added previous dashboard city to saved: $currentHomeCity")
+                    }
+                }
+
+                // Switch the dashboard to the selected city (use the API-normalized name)
+                onSwitchCity(selectedLocation.city)
+                android.util.Log.d("LocationViewModel", "Set dashboard to: ${selectedLocation.city}")
+            } catch (e: Exception) {
+                android.util.Log.e("LocationViewModel", "Error setting dashboard location: ${e.message}", e)
+            }
         }
     }
 
     /**
      * Swap a saved location with the current homepage city.
+     * Delegates to [setLocationAsDashboard] for backward compatibility.
      *
      * - The selected location is removed from the saved list.
      * - The previous homepage city is saved into the list (if not already there).
@@ -205,24 +281,7 @@ class LocationViewModel(
         currentHomeCity: String,
         onSwitchCity: (String) -> Unit
     ) {
-        viewModelScope.launch {
-            // Remove the selected location from the saved list
-            locationDao.deleteLocationById(selectedLocation.locationId)
-            // Also remove from Firestore
-            firestoreRepository.deleteLocation(selectedLocation.locationId)
-
-            // Add the current homepage city to the saved list (skip if duplicate)
-            val existing = locationDao.findLocation(currentUserId, currentHomeCity.trim())
-            if (existing == null && currentHomeCity.isNotBlank()) {
-                val newLocation = UserLocation(userId = currentUserId, cityName = currentHomeCity.trim())
-                locationDao.insertLocation(newLocation)
-                // Also add to Firestore
-                firestoreRepository.addLocation(newLocation)
-            }
-
-            // Switch the homepage to the selected city
-            onSwitchCity(selectedLocation.city)
-        }
+        setLocationAsDashboard(selectedLocation, currentHomeCity, onSwitchCity)
     }
 
     fun resetAddResult() {

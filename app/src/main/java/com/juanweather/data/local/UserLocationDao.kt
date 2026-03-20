@@ -28,6 +28,10 @@ interface UserLocationDao {
     @Query("DELETE FROM user_locations WHERE id = :id")
     suspend fun deleteLocationById(id: Int)
 
+    // Get a location by ID
+    @Query("SELECT * FROM user_locations WHERE id = :id LIMIT 1")
+    suspend fun getLocationById(id: Int): UserLocation?
+
     // Check for duplicate city per user
     @Query("SELECT * FROM user_locations WHERE userId = :userId AND cityName = :cityName LIMIT 1")
     suspend fun findLocation(userId: Int, cityName: String): UserLocation?

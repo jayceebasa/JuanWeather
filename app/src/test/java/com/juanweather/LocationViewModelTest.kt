@@ -210,11 +210,13 @@ class LocationViewModelTest {
 
     /**
      * TC-L-06 | DELETE — deleteLocation calls DAO with correct ID
-     * Verifies that deleteLocation passes the correct location ID to the DAO.
+     * Verifies that deleteLocation passes the correct location ID to the DAO
+     * and calls Firestore deleteLocation with the city name.
      */
     @Test
     fun `TC-L-06 deleteLocation calls dao deleteLocationById with correct id`() = runTest {
-        viewModel.deleteLocation(42)
+        // Test with explicit cityName parameter
+        viewModel.deleteLocation(42, "Manila")
         testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify(exactly = 1) { dao.deleteLocationById(42) }

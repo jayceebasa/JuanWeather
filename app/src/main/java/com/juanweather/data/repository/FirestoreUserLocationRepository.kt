@@ -81,16 +81,27 @@ class FirestoreUserLocationRepository {
     }
 
     /**
-     * Delete a location
+     * Delete a location by city name (the proper way to delete from Firestore)
+     * Since Firestore documents are keyed by UUID, we must query by cityName field
      */
-    suspend fun deleteLocation(locationId: Int) {
+    suspend fun deleteLocation(cityName: String) {
         val uid = FirebaseAuthManager.getCurrentUid()
         if (uid != null) {
-            firestore.collection("users").document(uid)
-                .collection("locations")
-                .document(locationId.toString())
-                .delete()
-                .await()
+            try {
+                val snapshot = firestore.collection("users").document(uid)
+                    .collection("locations")
+                    .whereEqualTo("cityName", cityName)
+                    .get()
+                    .await()
+
+                for (doc in snapshot.documents) {
+                    doc.reference.delete().await()
+                }
+                android.util.Log.d("FirestoreLocationRepo", "Deleted location for city: $cityName")
+            } catch (e: Exception) {
+                android.util.Log.e("FirestoreLocationRepo", "Error deleting location for city $cityName: ${e.message}", e)
+                throw e
+            }
         }
     }
 

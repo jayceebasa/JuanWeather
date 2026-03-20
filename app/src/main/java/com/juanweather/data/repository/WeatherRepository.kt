@@ -50,36 +50,56 @@ class WeatherRepository(private val apiService: WeatherApiService) {
     // All hours from current hour through tomorrow — each with correct day/night icon
     fun mapHourlyForecast(response: WeatherApiResponse): List<HourlyForecastItem> {
         val forecastDays = response.forecast?.forecastDay ?: return emptyList()
-        val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        val allHours = forecastDays.take(2).flatMap { it.hour }
+        if (forecastDays.isEmpty()) return emptyList()
 
-        var firstEntry = true
-        return allHours
-            .filter { hw ->
-                val hourInt = hw.time.split(" ").last().split(":").first().toIntOrNull() ?: 0
-                val isToday = hw.time.startsWith(forecastDays[0].date)
-                (!isToday) || (hourInt >= currentHour)
+        // Get current hour from the location's localtime, not device time
+        val locationLocaltime = response.location.localtime
+        val currentHour = try {
+            // Format: "2026-03-20 14:30"
+            locationLocaltime.substringAfterLast(" ").substringBefore(":").toIntOrNull() ?: 0
+        } catch (e: Exception) {
+            0
+        }
+
+        val todayDate = forecastDays[0].date
+
+        // Get all hours from today and tomorrow
+        val allHours = mutableListOf<Pair<String, com.juanweather.data.models.HourWeather>>()
+
+        // Add today's hours from current hour onwards
+        forecastDays[0].hour.forEach { hw ->
+            val hour = hw.time.substringAfterLast(" ").substringBefore(":").toIntOrNull() ?: 0
+            if (hour >= currentHour) {
+                allHours.add(Pair(todayDate, hw))
             }
-            .map { hw ->
-                val hourInt = hw.time.split(" ").last().split(":").first().toIntOrNull() ?: 0
-                val label = if (firstEntry) {
-                    firstEntry = false
-                    "NOW"
-                } else {
-                    val suffix = if (hourInt < 12) "AM" else "PM"
-                    val display = when (hourInt) {
-                        0         -> 12
-                        in 13..23 -> hourInt - 12
-                        else      -> hourInt
-                    }
-                    "${display}${suffix}"
+        }
+
+        // Add tomorrow's hours (up to 7 total items for 24-hour view)
+        if (allHours.size < 7 && forecastDays.size > 1) {
+            val tomorrowHours = forecastDays[1].hour
+            val needed = 7 - allHours.size
+            allHours.addAll(tomorrowHours.take(needed).map { Pair(forecastDays[1].date, it) })
+        }
+
+        return allHours.mapIndexed { index, (_, hw) ->
+            val hourInt = hw.time.substringAfterLast(" ").substringBefore(":").toIntOrNull() ?: 0
+            val label = if (index == 0) {
+                "NOW"
+            } else {
+                val suffix = if (hourInt < 12) "AM" else "PM"
+                val display = when (hourInt) {
+                    0         -> 12
+                    in 13..23 -> hourInt - 12
+                    else      -> hourInt
                 }
-                HourlyForecastItem(
-                    time        = label,
-                    iconType    = mapConditionToIcon(hw.condition.code, hw.isDay),
-                    temperature = "${hw.tempC.toInt()}°"
-                )
+                "${display}${suffix}"
             }
+            HourlyForecastItem(
+                time        = label,
+                iconType    = mapConditionToIcon(hw.condition.code, hw.isDay),
+                temperature = "${hw.tempC.toInt()}°C"
+            )
+        }
     }
 
     // 5-day forecast with real day names from API, always daytime icon for daily summary
