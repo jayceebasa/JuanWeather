@@ -38,15 +38,4 @@ class SOSRepository(
         val currentSettings = getSettingsOnce() ?: SOSSettings()
         updateSettings(currentSettings.copy(lastSentTime = System.currentTimeMillis()))
     }
-
-    suspend fun setTwilioCredentials(accountSid: String, authToken: String, phoneNumber: String) {
-        val currentSettings = getSettingsOnce() ?: SOSSettings()
-        updateSettings(
-            currentSettings.copy(
-                twilioAccountSid = accountSid,
-                twilioAuthToken = authToken,
-                twilioPhoneNumber = phoneNumber
-            )
-        )
-    }
 }

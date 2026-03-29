@@ -9,8 +9,5 @@ data class SOSSettings(
     val id: String = "sos_settings",
     val enableLocationSharing: Boolean = true,
     val messageTemplate: String = "I need help. This is an emergency SOS alert from JuanWeather.",
-    val lastSentTime: Long = 0,
-    val twilioAccountSid: String = "", // Store securely in production
-    val twilioAuthToken: String = "",  // Store securely in production
-    val twilioPhoneNumber: String = "" // Your Twilio phone number
+    val lastSentTime: Long = 0
 )

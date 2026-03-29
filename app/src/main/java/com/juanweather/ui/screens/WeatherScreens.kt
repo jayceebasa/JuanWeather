@@ -92,6 +92,7 @@ fun WeatherDashboardScreen(
     settingsViewModel: com.juanweather.viewmodel.SettingsViewModel? = null
 ) {
     val showSosPopup = remember { mutableStateOf(false) }
+    val showSosConfirmation = remember { mutableStateOf(false) }
 
     // Collect settings for unit conversions
     val settingsState = settingsViewModel?.settings?.collectAsState()
@@ -186,7 +187,7 @@ fun WeatherDashboardScreen(
                 Card(
                     modifier = Modifier
                         .clickable {
-                            showSosPopup.value = true
+                            showSosConfirmation.value = true
                         }
                         .padding(8.dp),
                     shape = RoundedCornerShape(20.dp),
@@ -595,6 +596,54 @@ fun WeatherDashboardScreen(
             modifier   = Modifier.align(Alignment.TopCenter),
             contentColor = Color.White,
             backgroundColor = Color(0xFF2E2E2E)
+        )
+    }
+
+    // SOS Confirmation Dialog
+    if (showSosConfirmation.value) {
+        AlertDialog(
+            title = {
+                Text(
+                    text = "Send SOS Alert?",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            text = {
+                Text(
+                    text = "This will send an emergency alert to all your emergency contacts. Are you sure?",
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 14.sp,
+                    lineHeight = 18.sp
+                )
+            },
+            onDismissRequest = { showSosConfirmation.value = false },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSosConfirmation.value = false
+                        showSosPopup.value = true
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFBA1E1E)
+                    )
+                ) {
+                    Text("Send SOS", color = Color.White, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { showSosConfirmation.value = false },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = Color.Gray
+                    )
+                ) {
+                    Text("Cancel", color = Color.White, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            containerColor = Color(0xFF2F2E2E).copy(alpha = 0.95f),
+            textContentColor = Color.White
         )
     }
 
@@ -1693,7 +1742,7 @@ fun SOSSettingsScreen(
                         .clickable(
                             enabled = emergencyContacts.isNotEmpty() && !isLoading
                         ) {
-                            // Convert phone numbers to E.164 format for Twilio
+                            // Convert phone numbers to E.164 format for Semaphore
                             val formattedNumbers = emergencyContacts.map { contact ->
                                 PhoneNumberValidator.formatPhilippineNumber(contact.phoneNumber)
                             }

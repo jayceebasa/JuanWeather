@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Debug domain configuration - allows more flexible certificate validation -->
+    <domain-config cleartextTrafficPermitted="false">
+        <!-- Weather API domain -->
+        <domain includeSubdomains="true">api.weatherapi.com</domain>
+
+        <!-- Semaphore API domain -->
+        <domain includeSubdomains="true">api.semaphore.co</domain>
+        <domain includeSubdomains="true">semaphore.co</domain>
+
+        <!-- Firebase and Google APIs -->
+        <domain includeSubdomains="true">googleapis.com</domain>
+        <domain includeSubdomains="true">firebaselogging-pa.googleapis.com</domain>
+
+        <!-- Allow system certificates -->
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- Default configuration for other domains -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">.</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- Debug configuration: allows self-signed certificates in debug mode -->
+    <!-- This should only be used during development -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

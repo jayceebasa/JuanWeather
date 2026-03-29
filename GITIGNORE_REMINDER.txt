@@ -1,0 +1,18 @@
+# Make sure to add this to your .gitignore to protect sensitive information:
+
+# Semaphore & API Keys
+semaphore.properties
+semaphore.config
+.env
+.env.local
+
+# Build configuration
+local.properties
+gradle.properties
+
+# IDE
+.idea/
+.gradle/
+
+# Build
+build/

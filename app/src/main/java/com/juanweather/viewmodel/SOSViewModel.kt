@@ -5,20 +5,22 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.juanweather.data.models.SOSSettings
 import com.juanweather.data.repository.HybridSOSRepository
+import com.juanweather.utils.FmcSmsConfig
+import com.juanweather.utils.FmcSmsService
 import com.juanweather.utils.LocationManager
-import com.juanweather.utils.TwilioConfig
-import com.juanweather.utils.TwilioSmsService
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
 class SOSViewModel(
     private val repository: HybridSOSRepository,
-    private val smsService: TwilioSmsService,
-    private val twilioConfig: TwilioConfig,
+    private val smsService: FmcSmsService,
+    private val fmcSmsConfig: FmcSmsConfig,
     private val locationManager: LocationManager? = null
 ) : ViewModel() {
 
@@ -30,6 +32,9 @@ class SOSViewModel(
 
     private val _messageTemplate = MutableStateFlow("I need help. This is an emergency SOS alert from JuanWeather.")
     val messageTemplate: StateFlow<String> = _messageTemplate.asStateFlow()
+
+    private val _userName = MutableStateFlow("User")
+    val userName: StateFlow<String> = _userName.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -93,6 +98,10 @@ class SOSViewModel(
         }
     }
 
+    fun setUserName(name: String) {
+        _userName.value = name
+    }
+
     /**
      * Send SOS alert to emergency contacts
      * @param emergencyContacts List of phone numbers to send to
@@ -120,11 +129,13 @@ class SOSViewModel(
                     locationUrl = getCurrentLocationUrl()
                 }
 
-                // Get Messaging Service SID from TwilioConfig
-                val messagingServiceSid = twilioConfig.getMessagingServiceSid()
-
-                if (messagingServiceSid.isEmpty()) {
-                    _errorMessage.value = "Twilio Messaging Service not configured. Please contact administrator."
+                // Check if Semaphore is configured
+                if (!fmcSmsConfig.isConfigured()) {
+                    Log.e("SOSViewModel", "FMCSMS Configuration Check Failed!")
+                    Log.e("SOSViewModel", "API Key: ${fmcSmsConfig.getApiKey().ifEmpty { "EMPTY" }}")
+                    Log.e("SOSViewModel", "Base URL: ${fmcSmsConfig.getBaseUrl().ifEmpty { "EMPTY" }}")
+                    Log.e("SOSViewModel", "From Number: ${fmcSmsConfig.getFromNumber().ifEmpty { "EMPTY" }}")
+                    _errorMessage.value = "FMCSMS is not configured. Please contact administrator."
                     return@launch
                 }
 
@@ -133,7 +144,7 @@ class SOSViewModel(
                     emergencyContacts,
                     _messageTemplate.value,
                     locationUrl,
-                    messagingServiceSid
+                    _userName.value
                 )
 
                 _sosResults.value = results
@@ -146,7 +157,7 @@ class SOSViewModel(
                 if (successCount > 0) {
                     _successMessage.value = "SOS alert sent to $successCount contact(s)"
                 } else {
-                    _errorMessage.value = "Failed to send SOS alerts to any contacts. Please check your Twilio configuration."
+                    _errorMessage.value = "Failed to send SOS alerts to any contacts. Please check your FMCSMS configuration."
                 }
             } catch (e: Exception) {
                 _errorMessage.value = "Error sending SOS: ${e.message}"
@@ -159,6 +170,7 @@ class SOSViewModel(
     /**
      * Get current location as a URL using suspendCancellableCoroutine
      * This properly waits for the location callback before returning
+     * Timeout: 10 seconds to prevent hanging
      */
     private suspend fun getCurrentLocationUrl(): String? {
         return try {
@@ -166,20 +178,32 @@ class SOSViewModel(
                 return null
             }
 
-            suspendCancellableCoroutine { continuation ->
-                locationManager.getCurrentLocation(
-                    onSuccess = { lat, lon ->
-                        val url = "https://maps.google.com/?q=$lat,$lon"
-                        continuation.resume(url)
-                    },
-                    onError = { error ->
-                        // Continue without location if retrieval fails
-                        _errorMessage.value = "Could not get location: $error (sending SOS without location)"
-                        continuation.resume(null)
-                    }
-                )
+            withTimeoutOrNull(10000L) {
+                suspendCancellableCoroutine { continuation ->
+                    locationManager.getCurrentLocation(
+                        onSuccess = { lat, lon ->
+                            // Format coordinates with proper precision (6 decimal places = ~0.1m accuracy)
+                            val formattedLat = String.format("%.6f", lat)
+                            val formattedLon = String.format("%.6f", lon)
+                            val locationText = "Location: $formattedLat, $formattedLon"
+                            Log.d("SOSViewModel", "Location obtained: $locationText")
+                            continuation.resume(locationText)
+                        },
+                        onError = { error ->
+                            // Continue without location if retrieval fails
+                            Log.e("SOSViewModel", "Location retrieval failed: $error")
+                            _errorMessage.value = "Could not get location: $error (sending SOS without location)"
+                            continuation.resume(null)
+                        }
+                    )
+                }
             }
+        } catch (e: TimeoutCancellationException) {
+            Log.w("SOSViewModel", "Location timeout after 10 seconds - sending SOS without location")
+            _errorMessage.value = "Location retrieval timeout - sending SOS without location"
+            null
         } catch (e: Exception) {
+            Log.e("SOSViewModel", "Location error: ${e.message}", e)
             _errorMessage.value = "Location error: ${e.message}"
             null
         }
@@ -188,18 +212,6 @@ class SOSViewModel(
     fun clearMessages() {
         _errorMessage.value = null
         _successMessage.value = null
-    }
-
-    fun setTwilioCredentials(accountSid: String, authToken: String, phoneNumber: String) {
-        viewModelScope.launch {
-            try {
-                repository.setTwilioCredentials(accountSid, authToken, phoneNumber)
-                val updated = repository.getSettingsOnce()
-                _settings.value = updated
-            } catch (e: Exception) {
-                _errorMessage.value = "Failed to set Twilio credentials: ${e.message}"
-            }
-        }
     }
 
     fun syncSOSSettingsOnLogin(firebaseUid: String? = null) {
@@ -220,4 +232,3 @@ class SOSViewModel(
         }
     }
 }
-

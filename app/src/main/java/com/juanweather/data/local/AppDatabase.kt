@@ -14,7 +14,7 @@ import com.juanweather.data.models.SOSSettings
 
 @Database(
     entities = [User::class, UserLocation::class, AppSettings::class, EmergencyContact::class, SOSSettings::class],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -108,6 +108,34 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Migration from v6 → v7: remove Twilio fields, switch to Semaphore
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Create new table without Twilio fields
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS sos_settings_new (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        enableLocationSharing INTEGER NOT NULL DEFAULT 1,
+                        messageTemplate TEXT NOT NULL DEFAULT 'I need help. This is an emergency SOS alert from JuanWeather.',
+                        lastSentTime INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+                // Copy data from old table to new table
+                db.execSQL(
+                    """
+                    INSERT INTO sos_settings_new (id, enableLocationSharing, messageTemplate, lastSentTime)
+                    SELECT id, enableLocationSharing, messageTemplate, lastSentTime FROM sos_settings
+                    """.trimIndent()
+                )
+                // Drop old table
+                db.execSQL("DROP TABLE sos_settings")
+                // Rename new table to original name
+                db.execSQL("ALTER TABLE sos_settings_new RENAME TO sos_settings")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -115,7 +143,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "juanweather.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                     .build()
                 INSTANCE = instance
                 instance

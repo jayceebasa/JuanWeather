@@ -8,6 +8,8 @@ plugins {
 
 }
 
+import java.util.Properties
+
 android {
     namespace = "com.juanweather"
     compileSdk = 36
@@ -19,11 +21,33 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Read FMCSMS configuration from local.properties
+        val localPropertiesFile = rootProject.file("local.properties")
+        val localProperties = Properties()
+        if (localPropertiesFile.exists()) {
+            localProperties.load(localPropertiesFile.inputStream())
+        }
+
+        val fmcsmsApiKey = (localProperties.getProperty("FMCSMS_API_KEY") ?:
+                           project.findProperty("FMCSMS_API_KEY") as String?) ?: ""
+        val fmcsmsBaseUrl = (localProperties.getProperty("FMCSMS_BASE_URL") ?:
+                            project.findProperty("FMCSMS_BASE_URL") as String?) ?: "https://fortmed.org/"
+        val fmcsmsSenderName = (localProperties.getProperty("FMCSMS_SENDER_NAME") ?:
+                               project.findProperty("FMCSMS_SENDER_NAME") as String?) ?: "JuanWeather"
+        val fmcsmsFromNumber = (localProperties.getProperty("FMCSMS_FROM_NUMBER") ?:
+                               project.findProperty("FMCSMS_FROM_NUMBER") as String?) ?: ""
+
+        buildConfigField("String", "FMCSMS_API_KEY", "\"$fmcsmsApiKey\"")
+        buildConfigField("String", "FMCSMS_BASE_URL", "\"$fmcsmsBaseUrl\"")
+        buildConfigField("String", "FMCSMS_SENDER_NAME", "\"$fmcsmsSenderName\"")
+        buildConfigField("String", "FMCSMS_FROM_NUMBER", "\"$fmcsmsFromNumber\"")
     }
 
     buildFeatures {
         viewBinding = true
         compose = true
+        buildConfig = true
     }
 
 
@@ -131,8 +155,5 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics-ktx")
     implementation("com.google.firebase:firebase-crashlytics-ktx")
     testImplementation("com.google.firebase:firebase-firestore-ktx:25.1.0") // For testing
-
-    // Twilio SMS
-    implementation("com.twilio.sdk:twilio:9.2.0")
 
 }

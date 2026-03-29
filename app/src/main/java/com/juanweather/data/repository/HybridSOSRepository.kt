@@ -202,19 +202,6 @@ class HybridSOSRepository(
         updateSettings(currentSettings.copy(lastSentTime = System.currentTimeMillis()))
     }
 
-    /**
-     * Set Twilio credentials
-     */
-    suspend fun setTwilioCredentials(accountSid: String, authToken: String, phoneNumber: String) {
-        val currentSettings = getSettingsOnce() ?: SOSSettings()
-        updateSettings(
-            currentSettings.copy(
-                twilioAccountSid = accountSid,
-                twilioAuthToken = authToken,
-                twilioPhoneNumber = phoneNumber
-            )
-        )
-    }
 
     /**
      * Sync SOS settings from Firestore to Room on login
