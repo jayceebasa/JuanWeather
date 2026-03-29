@@ -15,7 +15,8 @@ import kotlinx.coroutines.launch
 class LocationViewModel(
     private val locationDao: UserLocationDao,
     private val weatherRepository: WeatherRepository,
-    private val firestoreRepository: FirestoreUserLocationRepository = FirestoreUserLocationRepository()
+    private val firestoreRepository: FirestoreUserLocationRepository = FirestoreUserLocationRepository(),
+    private val userDao: com.juanweather.data.local.UserDao  // Add UserDao for persisting dashboard location
 ) : ViewModel() {
 
     private val _locationCards = MutableStateFlow<List<LocationWeather>>(emptyList())
@@ -34,7 +35,7 @@ class LocationViewModel(
     private var currentFirebaseUid: String? = null
 
     // Load locations from Room and fetch weather for each
-    fun loadLocationsForUser(userId: Int, firebaseUid: String? = null, onFirstLocationLoaded: ((String) -> Unit)? = null) {
+    fun loadLocationsForUser(userId: Int, firebaseUid: String? = null, weatherViewModel: WeatherViewModel? = null, onFirstLocationLoaded: ((String) -> Unit)? = null) {
         if (userId <= 0) {
             android.util.Log.e("LocationViewModel", "Invalid userId: $userId")
             _errorMessage.value = "Invalid user ID"
@@ -49,8 +50,15 @@ class LocationViewModel(
         _locationCards.value = emptyList()
         _isLoading.value = true
 
+        var hasAutoLoadedFirst = false
+        var hasLoadedOnce = false
+
         viewModelScope.launch {
             try {
+                // Check if there's a persisted dashboard location for this user
+                val user = userDao.getUserById(userId)
+                val persistedDashboardLocation = user?.lastDashboardLocation?.takeIf { it.isNotBlank() }
+
                 // First, migrate old locations if they exist (for backward compatibility)
                 migrateOldLocationsIfNeeded(userId, firebaseUid)
 
@@ -62,9 +70,56 @@ class LocationViewModel(
                     android.util.Log.d("LocationViewModel", "Loaded ${locations.size} locations for user $userId")
                     fetchWeatherForLocations(locations)
 
-                    // Auto-load the first location on the homepage
-                    if (locations.isNotEmpty() && onFirstLocationLoaded != null) {
-                        onFirstLocationLoaded(locations.first().cityName)
+                    // Mark that we've loaded at least once
+                    if (!hasLoadedOnce) {
+                        hasLoadedOnce = true
+                        // Set loading to false on first emission (even if empty)
+                        _isLoading.value = false
+                    }
+
+                    // Auto-load the PERSISTED dashboard location first (if it exists)
+                    if (persistedDashboardLocation != null && !hasAutoLoadedFirst) {
+                        android.util.Log.d("LocationViewModel", "Restoring persisted dashboard location: $persistedDashboardLocation for user $userId")
+                        hasAutoLoadedFirst = true
+
+                        // Call callback if provided
+                        if (onFirstLocationLoaded != null) {
+                            onFirstLocationLoaded(persistedDashboardLocation)
+                        }
+
+                        // Also directly fetch weather on the provided ViewModel (for reliability)
+                        if (weatherViewModel != null) {
+                            android.util.Log.d("LocationViewModel", "Directly fetching weather for persisted location: $persistedDashboardLocation")
+                            weatherViewModel.fetchWeatherByCity(persistedDashboardLocation)
+                            android.util.Log.d("LocationViewModel", "Weather fetch triggered, currentCity is now: ${weatherViewModel.currentCity.value}")
+                        }
+                    }
+                    // If no persisted location, auto-load the first location
+                    else if (locations.isNotEmpty() && !hasAutoLoadedFirst) {
+                        val firstCity = locations.first().cityName
+                        val firstLocationId = locations.first().id
+                        android.util.Log.d("LocationViewModel", "Auto-loading first location: $firstCity for user $userId")
+                        hasAutoLoadedFirst = true
+
+                        // Update lastViewedAt for the first location being viewed
+                        locationDao.updateLastViewedAt(firstLocationId, System.currentTimeMillis())
+
+                        // Call callback if provided
+                        if (onFirstLocationLoaded != null) {
+                            onFirstLocationLoaded(firstCity)
+                        }
+
+                        // Also directly fetch weather on the provided ViewModel (for reliability)
+                        if (weatherViewModel != null) {
+                            android.util.Log.d("LocationViewModel", "Directly fetching weather for first location: $firstCity")
+                            weatherViewModel.fetchWeatherByCity(firstCity)
+                            android.util.Log.d("LocationViewModel", "Weather fetch triggered, currentCity is now: ${weatherViewModel.currentCity.value}")
+                        }
+                    } else if (locations.isEmpty() && !hasAutoLoadedFirst) {
+                        android.util.Log.d("LocationViewModel", "No locations found for user $userId - this is a new account")
+                        hasAutoLoadedFirst = true
+                        // Ensure loading is off for new accounts with no locations
+                        _isLoading.value = false
                     }
                 }
             } catch (e: Exception) {
@@ -92,34 +147,22 @@ class LocationViewModel(
                 // Fetch locations from Firestore using Firebase UID
                 val firestoreLocations = firestoreRepository.getAllLocationsByFirebaseUid(uid)
 
+                // ⚠️ CRITICAL FIX: Delete ALL locations for this user from Room first
+                // This ensures we have a clean slate and removes any stale/orphaned locations
+                val currentRoomLocations = locationDao.getLocationsForUserSync(userId)
+                for (staleLocation in currentRoomLocations) {
+                    locationDao.deleteLocationById(staleLocation.id)
+                    android.util.Log.d("LocationViewModel", "Cleared stale location: ${staleLocation.cityName} for user $userId")
+                }
+
                 if (firestoreLocations.isNotEmpty()) {
                     android.util.Log.d("LocationViewModel", "Found ${firestoreLocations.size} locations in Firestore for user $userId")
 
-                    // Get current Room locations for this user
-                    val roomLocations = locationDao.getLocationsForUserSync(userId)
-
-                    // For each Firestore location, ensure it exists in Room with correct userId
+                    // For each Firestore location, add it to Room with correct userId
                     for (firestoreLocation in firestoreLocations) {
-                        // Check if location already exists in Room by cityName
-                        val existing = locationDao.findLocation(userId, firestoreLocation.cityName)
-
-                        if (existing == null) {
-                            // Add to Room with correct userId, keeping other fields from Firestore
-                            val roomLocation = firestoreLocation.copy(userId = userId)
-                            locationDao.insertLocation(roomLocation)
-                            android.util.Log.d("LocationViewModel", "Synced location: ${firestoreLocation.cityName} to Room")
-                        } else {
-                            android.util.Log.d("LocationViewModel", "Location ${firestoreLocation.cityName} already exists in Room")
-                        }
-                    }
-
-                    // Delete from Room any locations that are no longer in Firestore
-                    val firestoreCityNames = firestoreLocations.map { it.cityName }.toSet()
-                    for (roomLocation in roomLocations) {
-                        if (roomLocation.cityName !in firestoreCityNames) {
-                            locationDao.deleteLocationById(roomLocation.id)
-                            android.util.Log.d("LocationViewModel", "Deleted stale location from Room: ${roomLocation.cityName}")
-                        }
+                        val roomLocation = firestoreLocation.copy(userId = userId)
+                        locationDao.insertLocation(roomLocation)
+                        android.util.Log.d("LocationViewModel", "Synced location: ${firestoreLocation.cityName} to Room for user $userId")
                     }
                 } else {
                     android.util.Log.d("LocationViewModel", "No locations found in Firestore for UID: $uid")
@@ -176,6 +219,10 @@ class LocationViewModel(
         val validLocations = locations.filter { it.cityName.isNotBlank() && it.userId > 0 }
         val cards = validLocations.mapNotNull { loc ->
             try {
+                // NOTE: Do NOT update lastViewedAt here - that should only happen when a location is
+                // selected and made the dashboard location (via setLocationAsDashboard).
+                // Updating here causes locations to swap order just by viewing the list.
+
                 val response = weatherRepository.getWeatherForCity(loc.cityName)
                 val today = response.forecast?.forecastDay?.firstOrNull()?.day
                 LocationWeather(
@@ -312,9 +359,19 @@ class LocationViewModel(
             try {
                 // Use the original cityName (not API-normalized) for deletion
                 val cityToDelete = selectedLocation.cityName.ifBlank { selectedLocation.city }
+                val locationId = selectedLocation.locationId
+                val updatedLastViewed = System.currentTimeMillis()
+
+                // Update lastViewedAt for the selected location (moves it to top of list)
+                locationDao.updateLastViewedAt(locationId, updatedLastViewed)
+                android.util.Log.d("LocationViewModel", "Updated lastViewedAt for location $locationId to $updatedLastViewed")
+
+                // PERSIST the dashboard location to the User record
+                userDao.updateLastDashboardLocation(currentUserId, selectedLocation.city)
+                android.util.Log.d("LocationViewModel", "Persisted dashboard location: ${selectedLocation.city} for user $currentUserId")
 
                 // Remove the selected location from the saved list (it will become the dashboard city)
-                locationDao.deleteLocationById(selectedLocation.locationId)
+                locationDao.deleteLocationById(locationId)
                 firestoreRepository.deleteLocation(cityToDelete)
 
                 // Add the current homepage city to the saved list (skip if duplicate or blank)
@@ -322,7 +379,12 @@ class LocationViewModel(
                 if (currentHomeCity.isNotBlank() && currentHomeCity.trim() != cityToDelete.trim()) {
                     val existing = locationDao.findLocation(currentUserId, currentHomeCity.trim())
                     if (existing == null) {
-                        val newLocation = UserLocation(userId = currentUserId, cityName = currentHomeCity.trim())
+                        val newLocation = UserLocation(
+                            userId = currentUserId,
+                            cityName = currentHomeCity.trim(),
+                            addedAt = System.currentTimeMillis(),
+                            lastViewedAt = updatedLastViewed - 1000 // Slightly older so newly selected appears first when it's re-added
+                        )
                         locationDao.insertLocation(newLocation)
                         firestoreRepository.addLocation(newLocation)
                         android.util.Log.d("LocationViewModel", "Added previous dashboard city to saved: $currentHomeCity")
@@ -337,6 +399,7 @@ class LocationViewModel(
             }
         }
     }
+
 
     /**
      * Swap a saved location with the current homepage city.
@@ -357,6 +420,29 @@ class LocationViewModel(
 
     fun resetAddResult() {
         _addResult.value = AddResult.Idle
+    }
+
+    /**
+     * Mark a location as viewed/selected when user clicks on it in the locations list.
+     * This updates lastViewedAt to move it to the top of the list AND persists it as the dashboard location.
+     * Only called when the user explicitly taps a location card.
+     */
+    fun markLocationAsViewed(locationId: Int, cityName: String = "") {
+        viewModelScope.launch {
+            try {
+                val timestamp = System.currentTimeMillis()
+                locationDao.updateLastViewedAt(locationId, timestamp)
+                android.util.Log.d("LocationViewModel", "Marked location $locationId as viewed at $timestamp")
+
+                // PERSIST the viewed location as the dashboard location to User table
+                if (cityName.isNotBlank() && currentUserId > 0) {
+                    userDao.updateLastDashboardLocation(currentUserId, cityName)
+                    android.util.Log.d("LocationViewModel", "PERSISTED dashboard location: $cityName for user $currentUserId")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("LocationViewModel", "Error marking location as viewed: ${e.message}", e)
+            }
+        }
     }
 
     /**

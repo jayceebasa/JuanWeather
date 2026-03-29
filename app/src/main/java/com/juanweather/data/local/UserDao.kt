@@ -36,6 +36,10 @@ interface UserDao {
     @Update
     suspend fun updateUser(user: User)
 
+    // UPDATE - Update last dashboard location for persistence
+    @Query("UPDATE users SET lastDashboardLocation = :cityName WHERE id = :userId")
+    suspend fun updateLastDashboardLocation(userId: Int, cityName: String)
+
     // DELETE
     @Delete
     suspend fun deleteUser(user: User)

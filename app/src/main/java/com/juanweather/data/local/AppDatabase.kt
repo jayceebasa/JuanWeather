@@ -14,7 +14,7 @@ import com.juanweather.data.models.SOSSettings
 
 @Database(
     entities = [User::class, UserLocation::class, AppSettings::class, EmergencyContact::class, SOSSettings::class],
-    version = 7,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -136,6 +136,22 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Migration from v7 → v8: add lastViewedAt column to user_locations table
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add lastViewedAt column to user_locations table with current time as default
+                db.execSQL("ALTER TABLE user_locations ADD COLUMN lastViewedAt INTEGER NOT NULL DEFAULT (CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER))")
+            }
+        }
+
+        // Migration from v8 → v9: add lastDashboardLocation column to users table
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add lastDashboardLocation column to users table to persist current dashboard city
+                db.execSQL("ALTER TABLE users ADD COLUMN lastDashboardLocation TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -143,7 +159,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "juanweather.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                     .build()
                 INSTANCE = instance
                 instance

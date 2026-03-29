@@ -2,7 +2,7 @@ package com.juanweather.utils
 
 object Constants {
     // API Keys
-    const val WEATHER_API_KEY = "010b4a1c55cc416ba4b114408260903"
+    const val WEATHER_API_KEY = "fbde111a341a468bad0203555262903"
     const val WEATHER_BASE_URL = "https://api.weatherapi.com/v1/"
 
     // Preferences

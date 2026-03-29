@@ -2,13 +2,32 @@ package com.juanweather.ui
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.ViewModelProvider
 import com.juanweather.JuanWeatherApp
@@ -113,7 +132,8 @@ fun WeatherApp() {
                 return LocationViewModel(
                     app.userLocationDao,
                     app.weatherRepository,
-                    com.juanweather.data.repository.FirestoreUserLocationRepository()
+                    com.juanweather.data.repository.FirestoreUserLocationRepository(),
+                    app.userDao  // Inject UserDao for dashboard location persistence
                 ) as T
             }
         }
@@ -159,6 +179,7 @@ fun WeatherApp() {
     val navigationController = remember { NavigationController() }
     val currentScreen = remember { mutableStateOf(AppScreen.Login) }
     val backPressedOnDashboard = remember { mutableStateOf(false) }
+    val isPostLoginLoading = remember { mutableStateOf(false) }
 
     // RBAC — observe admin status reactively
     val isAdmin by authViewModel.isAdmin.collectAsState()
@@ -209,6 +230,9 @@ fun WeatherApp() {
             LoginScreen(
                 authViewModel = authViewModel,
                 onLoginSuccess = {
+                    // Show loading state while fetching data
+                    isPostLoginLoading.value = true
+
                     // Load this user's saved locations and settings
                     val userId = authViewModel.loggedInUser.value?.id ?: 0
                     val firebaseUid = authViewModel.firebaseUid.value
@@ -233,12 +257,22 @@ fun WeatherApp() {
                         }.start()
                     }
 
-                    locationViewModel.loadLocationsForUser(userId, firebaseUid) { firstLocationCity ->
-                        // Auto-load the first location on the homepage
-                        weatherViewModel.fetchWeatherByCity(firstLocationCity)
+                    // Load locations and auto-fetch weather for the first one
+                    locationViewModel.loadLocationsForUser(userId, firebaseUid, weatherViewModel) { firstLocationCity ->
+                        android.util.Log.d("WeatherApp", "First location callback fired with city: $firstLocationCity")
+                        // Hide loading after weather starts fetching
+                        isPostLoginLoading.value = false
                     }
+
                     navigationController.navigate(AppScreen.Dashboard)
                     currentScreen.value = AppScreen.Dashboard
+
+                    // Set a timeout to hide loading in case no locations exist (new account)
+                    // This ensures loading screen doesn't stay indefinite
+                    Thread {
+                        Thread.sleep(3000) // 3 second timeout
+                        isPostLoginLoading.value = false
+                    }.start()
                 },
                 onNavigateToRegister = {
                     navigationController.navigate(AppScreen.Register)
@@ -285,6 +319,43 @@ fun WeatherApp() {
                 },
                 isAdmin = isAdmin
             )
+
+            // Show loading splash while fetching post-login data
+            if (isPostLoginLoading.value) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .zIndex(1000f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Text(
+                            text = "Loading your weather data...",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "This may take a moment",
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
         }
 
         AppScreen.AddLocation -> {

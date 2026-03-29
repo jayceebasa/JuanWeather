@@ -15,5 +15,6 @@ data class User(
     val email: String,
     val password: String,
     val role: String = "user",          // RBAC: "admin" | "user"
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val lastDashboardLocation: String = ""  // Persists the current dashboard city name
 )

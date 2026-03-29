@@ -9,5 +9,6 @@ data class UserLocation(
     val id: Int = 0,
     val userId: Int = 0,                    // FK to User.id — each location belongs to a user
     val cityName: String = "",
-    val addedAt: Long = System.currentTimeMillis()
+    val addedAt: Long = System.currentTimeMillis(),
+    val lastViewedAt: Long = System.currentTimeMillis()  // Tracks when location was last viewed on dashboard
 )

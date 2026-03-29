@@ -1,6 +1,8 @@
 package com.juanweather.data.remote
 
 import android.util.Log
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.juanweather.utils.Constants
 import okhttp3.ConnectionSpec
 import okhttp3.OkHttpClient
@@ -73,10 +75,19 @@ object ApiClient {
     }
 
     private fun getRetrofit(): Retrofit {
+        // Create a custom Gson instance with explicit configuration
+        // This prevents reflection issues when ProGuard minifies the app
+        val gson = GsonBuilder()
+            .setObjectToNumberStrategy(com.google.gson.ToNumberPolicy.LONG_OR_DOUBLE)
+            .setNumberToNumberStrategy(com.google.gson.ToNumberPolicy.LONG_OR_DOUBLE)
+            .serializeNulls()  // Important: handle null values explicitly
+            .setLenient()  // More lenient parsing to handle API quirks
+            .create()
+
         return Retrofit.Builder()
             .baseUrl(Constants.WEATHER_BASE_URL)
             .client(getOkHttpClient())
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
     }
 

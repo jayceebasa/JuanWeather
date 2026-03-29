@@ -5,65 +5,65 @@ import com.google.gson.annotations.SerializedName
 // ── weatherapi.com response models ──────────────────────────────────────────
 
 data class WeatherApiResponse(
-    @SerializedName("location") val location: WeatherLocation,
-    @SerializedName("current")  val current: CurrentWeather,
-    @SerializedName("forecast") val forecast: ForecastContainer?
+    @SerializedName("location") val location: WeatherLocation = WeatherLocation(),
+    @SerializedName("current")  val current: CurrentWeather = CurrentWeather(),
+    @SerializedName("forecast") val forecast: ForecastContainer? = null
 )
 
 data class WeatherLocation(
-    @SerializedName("name")      val name: String,
-    @SerializedName("region")    val region: String,
-    @SerializedName("country")   val country: String,
-    @SerializedName("lat")       val lat: Double,
-    @SerializedName("lon")       val lon: Double,
-    @SerializedName("tz_id")     val tzId: String,
-    @SerializedName("localtime") val localtime: String
+    @SerializedName("name")      val name: String = "",
+    @SerializedName("region")    val region: String = "",
+    @SerializedName("country")   val country: String = "",
+    @SerializedName("lat")       val lat: Double = 0.0,
+    @SerializedName("lon")       val lon: Double = 0.0,
+    @SerializedName("tz_id")     val tzId: String = "",
+    @SerializedName("localtime") val localtime: String = ""
 )
 
 data class CurrentWeather(
-    @SerializedName("is_day")       val isDay: Int,             // 1 = day, 0 = night
-    @SerializedName("temp_c")       val tempC: Float,
-    @SerializedName("temp_f")       val tempF: Float,
-    @SerializedName("feelslike_c")  val feelsLikeC: Float,
-    @SerializedName("humidity")     val humidity: Int,
-    @SerializedName("wind_kph")     val windKph: Float,
-    @SerializedName("wind_degree")  val windDegree: Int,
-    @SerializedName("pressure_mb")  val pressureMb: Float,
-    @SerializedName("vis_km")       val visKm: Float,
-    @SerializedName("uv")           val uv: Float,
-    @SerializedName("cloud")        val cloud: Int,
-    @SerializedName("condition")    val condition: WeatherCondition
+    @SerializedName("is_day")       val isDay: Int = 0,
+    @SerializedName("temp_c")       val tempC: Float = 0f,
+    @SerializedName("temp_f")       val tempF: Float = 0f,
+    @SerializedName("feelslike_c")  val feelsLikeC: Float = 0f,
+    @SerializedName("humidity")     val humidity: Int = 0,
+    @SerializedName("wind_kph")     val windKph: Float = 0f,
+    @SerializedName("wind_degree")  val windDegree: Int = 0,
+    @SerializedName("pressure_mb")  val pressureMb: Float = 0f,
+    @SerializedName("vis_km")       val visKm: Float = 0f,
+    @SerializedName("uv")           val uv: Float = 0f,
+    @SerializedName("cloud")        val cloud: Int = 0,
+    @SerializedName("condition")    val condition: WeatherCondition = WeatherCondition()
 )
 
 data class WeatherCondition(
-    @SerializedName("text") val text: String,
-    @SerializedName("icon") val icon: String,
-    @SerializedName("code") val code: Int
+    @SerializedName("text") val text: String = "",
+    @SerializedName("icon") val icon: String = "",
+    @SerializedName("code") val code: Int = 0
 )
 
 data class ForecastContainer(
-    @SerializedName("forecastday") val forecastDay: List<ForecastDay>
+    @SerializedName("forecastday") val forecastDay: List<ForecastDay> = emptyList()
 )
 
 data class ForecastDay(
-    @SerializedName("date")  val date: String,
-    @SerializedName("day")   val day: DaySummary,
-    @SerializedName("hour")  val hour: List<HourWeather>
+    @SerializedName("date")  val date: String = "",
+    @SerializedName("day")   val day: DaySummary = DaySummary(),
+    @SerializedName("hour")  val hour: List<HourWeather> = emptyList()
 )
 
 data class DaySummary(
-    @SerializedName("maxtemp_c")       val maxTempC: Float,
-    @SerializedName("mintemp_c")       val minTempC: Float,
-    @SerializedName("daily_chance_of_rain") val chanceOfRain: Int,
-    @SerializedName("condition")       val condition: WeatherCondition
+    @SerializedName("maxtemp_c")       val maxTempC: Float = 0f,
+    @SerializedName("mintemp_c")       val minTempC: Float = 0f,
+    @SerializedName("daily_chance_of_rain") val chanceOfRain: Int = 0,
+    @SerializedName("condition")       val condition: WeatherCondition = WeatherCondition()
 )
 
 data class HourWeather(
-    @SerializedName("time")           val time: String,
-    @SerializedName("temp_c")         val tempC: Float,
-    @SerializedName("is_day")         val isDay: Int,           // 1 = day, 0 = night
-    @SerializedName("condition")      val condition: WeatherCondition,
-    @SerializedName("chance_of_rain") val chanceOfRain: Int
+    @SerializedName("time")           val time: String = "",
+    @SerializedName("temp_c")         val tempC: Float = 0f,
+    @SerializedName("is_day")         val isDay: Int = 0,
+    @SerializedName("condition")      val condition: WeatherCondition = WeatherCondition(),
+    @SerializedName("chance_of_rain") val chanceOfRain: Int = 0
 )
 
 // ── Legacy models kept for WeatherRepository compatibility ───────────────────

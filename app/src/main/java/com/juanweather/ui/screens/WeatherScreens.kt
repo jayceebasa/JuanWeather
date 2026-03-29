@@ -57,6 +57,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -139,10 +141,27 @@ fun WeatherDashboardScreen(
     val currentCity  = weatherViewModel?.currentCity?.collectAsState()?.value  ?: ""
     val hasLocation  = weatherViewModel?.hasLocation?.collectAsState()?.value  ?: false
 
+    // Track if we're in the initial load phase (loading but no city set yet)
+    val isInitialLoading = isLoading && currentCity.isBlank() && !hasLocation
+
     // Only fetch when a city has been set
     LaunchedEffect(currentCity) {
         if (currentCity.isNotBlank()) {
             weatherViewModel?.fetchWeatherByCity(currentCity)
+        }
+    }
+
+    // Skeleton shimmer animation
+    val shimmerAlpha = remember { mutableStateOf(0.3f) }
+    LaunchedEffect(isInitialLoading) {
+        if (isInitialLoading) {
+            while (isInitialLoading) {
+                // Animate shimmer effect
+                shimmerAlpha.value = 0.3f
+                delay(500)
+                shimmerAlpha.value = 0.7f
+                delay(500)
+            }
         }
     }
 
@@ -231,10 +250,48 @@ fun WeatherDashboardScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // Get screen metrics for responsive sizing
+            val density = LocalDensity.current
+            val configuration = LocalConfiguration.current
+            val screenWidthDp = configuration.screenWidthDp
+
+            // Calculate responsive font sizes and padding
+            val isSmallDevice = screenWidthDp < 360
+            val isMediumDevice = screenWidthDp in 360..410
+            val cardWidthFraction = when {
+                isSmallDevice -> 0.85f
+                isMediumDevice -> 0.75f
+                else -> 0.65f
+            }
+
+            val mainTempFontSize = when {
+                isSmallDevice -> 52.sp
+                isMediumDevice -> 60.sp
+                else -> 72.sp
+            }
+
+            val locationFontSize = when {
+                isSmallDevice -> 18.sp
+                isMediumDevice -> 20.sp
+                else -> 22.sp
+            }
+
+            val conditionFontSize = when {
+                isSmallDevice -> 14.sp
+                isMediumDevice -> 16.sp
+                else -> 18.sp
+            }
+
+            val cardPadding = when {
+                isSmallDevice -> 20.dp
+                isMediumDevice -> 24.dp
+                else -> 30.dp
+            }
+
             // Main weather card
             Card(
                 modifier = Modifier
-                    .fillMaxWidth(0.6f)
+                    .fillMaxWidth(cardWidthFraction)
                     .clickable { onNavigateToAddLocation() },
                 shape = RoundedCornerShape(30.dp),
                 colors = CardDefaults.cardColors(
@@ -243,11 +300,71 @@ fun WeatherDashboardScreen(
             ) {
                 Column(
                     modifier = Modifier
-                        .padding(30.dp)
+                        .padding(cardPadding)
                         .fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    if (isLoading) {
+                    if (isInitialLoading) {
+                        // Skeleton loading state with shimmer animation
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Skeleton for location name
+                            Box(
+                                modifier = Modifier
+                                    .width(100.dp)
+                                    .height(20.dp)
+                                    .background(
+                                        color = Color.White.copy(alpha = shimmerAlpha.value),
+                                        shape = RoundedCornerShape(4.dp)
+                                    )
+                            )
+
+                            // Skeleton for temperature
+                            Box(
+                                modifier = Modifier
+                                    .width(120.dp)
+                                    .height(60.dp)
+                                    .background(
+                                        color = Color.White.copy(alpha = shimmerAlpha.value),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                            )
+
+                            // Skeleton for condition
+                            Box(
+                                modifier = Modifier
+                                    .width(90.dp)
+                                    .height(16.dp)
+                                    .background(
+                                        color = Color.White.copy(alpha = shimmerAlpha.value),
+                                        shape = RoundedCornerShape(4.dp)
+                                    )
+                            )
+
+                            // Skeleton for high/low
+                            Box(
+                                modifier = Modifier
+                                    .width(110.dp)
+                                    .height(14.dp)
+                                    .background(
+                                        color = Color.White.copy(alpha = shimmerAlpha.value),
+                                        shape = RoundedCornerShape(4.dp)
+                                    )
+                            )
+
+                            // Loading text
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Loading weather data...",
+                                color = Color.White.copy(alpha = 0.6f),
+                                fontSize = 12.sp
+                            )
+                        }
+                    } else if (isLoading) {
                         androidx.compose.material3.CircularProgressIndicator(
                             color = Color.White,
                             modifier = Modifier.size(32.dp)
@@ -268,14 +385,14 @@ fun WeatherDashboardScreen(
                         Text(
                             text = "No location set",
                             color = Color.White,
-                            fontSize = 18.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "Tap here to add a location",
                             color = Color.White.copy(alpha = 0.7f),
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -283,9 +400,11 @@ fun WeatherDashboardScreen(
                         Text(
                             text = locationName,
                             color = Color.White,
-                            fontSize = 22.sp,
+                            fontSize = locationFontSize,
                             fontWeight = FontWeight.Light,
-                            modifier = Modifier.padding(bottom = 8.dp)
+                            modifier = Modifier.padding(bottom = 8.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         // Convert main temperature to user's preferred unit
                         val tempValue = temperature.replace("°C", "").replace("°F", "").trim().toDoubleOrNull() ?: 19.0
@@ -299,15 +418,18 @@ fun WeatherDashboardScreen(
                         Text(
                             text = convertedTemp,
                             color = Color.White,
-                            fontSize = 72.sp,
+                            fontSize = mainTempFontSize,
                             fontWeight = FontWeight.Thin,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
                         Text(
                             text = condition,
                             color = Color.White,
-                            fontSize = 18.sp,
-                            modifier = Modifier.padding(bottom = 4.dp)
+                            fontSize = conditionFontSize,
+                            modifier = Modifier.padding(bottom = 4.dp),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center
                         )
                         // Convert high/low temps to user's preferred unit
                         val highLowConverted = if (settings?.temperatureUnit == "F") {
@@ -324,7 +446,7 @@ fun WeatherDashboardScreen(
                         Text(
                             text = highLowConverted,
                             color = Color.White.copy(alpha = 0.8f),
-                            fontSize = 14.sp
+                            fontSize = 12.sp
                         )
                         if (errorMessage != null) {
                             Text(
@@ -380,11 +502,78 @@ fun WeatherDashboardScreen(
 
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            LazyRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                items(hourlyForecast, key = { "${fetchId}-${it.time}" }) { item ->
+                            if (isInitialLoading) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    repeat(5) {
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(1f),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .width(35.dp)
+                                                    .height(12.dp)
+                                                    .background(
+                                                        color = Color.White.copy(alpha = shimmerAlpha.value),
+                                                        shape = RoundedCornerShape(4.dp)
+                                                    )
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(28.dp)
+                                                    .background(
+                                                        color = Color.White.copy(alpha = shimmerAlpha.value),
+                                                        shape = RoundedCornerShape(4.dp)
+                                                    )
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Box(
+                                                modifier = Modifier
+                                                    .width(35.dp)
+                                                    .height(12.dp)
+                                                    .background(
+                                                        color = Color.White.copy(alpha = shimmerAlpha.value),
+                                                        shape = RoundedCornerShape(4.dp)
+                                                    )
+                                            )
+                                        }
+                                    }
+                                }
+                            } else if (isLoading) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(100.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            color = Color.White,
+                                            modifier = Modifier.size(32.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Text(
+                                            text = "Loading forecast...",
+                                            color = Color.White.copy(alpha = 0.6f),
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
+                            } else {
+                                LazyRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    items(hourlyForecast, key = { "${fetchId}-${it.time}" }) { item ->
                                     Column(
                                         modifier = Modifier
                                             .padding(4.dp)
@@ -422,6 +611,7 @@ fun WeatherDashboardScreen(
                                     }
                                 }
                             }
+                            }
                         }
                     }
 
@@ -452,11 +642,67 @@ fun WeatherDashboardScreen(
 
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                dailyForecast.forEach { item ->
+                            if (isInitialLoading) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    repeat(5) {
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(1f),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .width(30.dp)
+                                                    .height(10.dp)
+                                                    .background(
+                                                        color = Color.White.copy(alpha = shimmerAlpha.value),
+                                                        shape = RoundedCornerShape(4.dp)
+                                                    )
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(24.dp)
+                                                    .background(
+                                                        color = Color.White.copy(alpha = shimmerAlpha.value),
+                                                        shape = RoundedCornerShape(4.dp)
+                                                    )
+                                            )
+                                        }
+                                    }
+                                }
+                            } else if (isLoading) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(80.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            color = Color.White,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "Loading forecast...",
+                                            color = Color.White.copy(alpha = 0.6f),
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                            } else {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    dailyForecast.forEach { item ->
                                     Column(
                                         modifier = Modifier
                                             .padding(4.dp)
@@ -477,6 +723,7 @@ fun WeatherDashboardScreen(
                                         )
                                     }
                                 }
+                            }
                             }
                         }
                     }
@@ -515,18 +762,74 @@ fun WeatherDashboardScreen(
                                     modifier = Modifier.padding(bottom = 16.dp)
                                 )
 
-                                Text(
-                                    text = chanceOfRain,
-                                    color = Color.White,
-                                    fontSize = 60.sp,
-                                    fontWeight = FontWeight.Thin,
-                                    modifier = Modifier.padding(bottom = 16.dp)
-                                )
+                                if (isInitialLoading) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center,
+                                            modifier = Modifier.padding(vertical = 40.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .width(80.dp)
+                                                    .height(50.dp)
+                                                    .background(
+                                                        color = Color.White.copy(alpha = shimmerAlpha.value),
+                                                        shape = RoundedCornerShape(8.dp)
+                                                    )
+                                            )
+                                            Spacer(modifier = Modifier.height(12.dp))
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(50.dp)
+                                                    .background(
+                                                        color = Color.White.copy(alpha = shimmerAlpha.value),
+                                                        shape = RoundedCornerShape(4.dp)
+                                                    )
+                                            )
+                                        }
+                                    }
+                                } else if (isLoading) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center,
+                                            modifier = Modifier.padding(vertical = 40.dp)
+                                        ) {
+                                            CircularProgressIndicator(
+                                                color = Color.White,
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                            Spacer(modifier = Modifier.height(12.dp))
+                                            Text(
+                                                text = "Loading...",
+                                                color = Color.White.copy(alpha = 0.6f),
+                                                fontSize = 10.sp
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    Text(
+                                        text = chanceOfRain,
+                                        color = Color.White,
+                                        fontSize = 60.sp,
+                                        fontWeight = FontWeight.Thin,
+                                        modifier = Modifier.padding(bottom = 16.dp)
+                                    )
 
-                                CloudRainIcon(
-                                    modifier = Modifier.size(60.dp),
-                                    color = Color(0xFF93C5FD)
-                                )
+                                    CloudRainIcon(
+                                        modifier = Modifier.size(60.dp),
+                                        color = Color(0xFF93C5FD)
+                                    )
+                                }
                             }
                         }
 
@@ -557,27 +860,92 @@ fun WeatherDashboardScreen(
                                         .padding(bottom = 16.dp)
                                 )
 
-                                metrics.forEach { metric ->
-                                    Row(
+                                if (isInitialLoading) {
+                                    Box(
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 6.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                                            .fillMaxSize(),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Text(
-                                            text = metric.label,
-                                            color = Color.White.copy(alpha = 0.6f),
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            letterSpacing = 0.5.sp
-                                        )
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 12.dp),
+                                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            repeat(4) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .width(60.dp)
+                                                            .height(12.dp)
+                                                            .background(
+                                                                color = Color.White.copy(alpha = shimmerAlpha.value),
+                                                                shape = RoundedCornerShape(4.dp)
+                                                            )
+                                                    )
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .width(50.dp)
+                                                            .height(12.dp)
+                                                            .background(
+                                                                color = Color.White.copy(alpha = shimmerAlpha.value),
+                                                                shape = RoundedCornerShape(4.dp)
+                                                            )
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else if (isLoading) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            CircularProgressIndicator(
+                                                color = Color.White,
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                            Spacer(modifier = Modifier.height(12.dp))
+                                            Text(
+                                                text = "Loading metrics...",
+                                                color = Color.White.copy(alpha = 0.6f),
+                                                fontSize = 10.sp
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    metrics.forEach { metric ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 6.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = metric.label,
+                                                color = Color.White.copy(alpha = 0.6f),
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                letterSpacing = 0.5.sp
+                                            )
 
-                                        Text(
-                                            text = metric.value,
-                                            color = Color.White,
-                                            fontSize = 14.sp
-                                        )
+                                            Text(
+                                                text = metric.value,
+                                                color = Color.White,
+                                                fontSize = 14.sp
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -2533,7 +2901,12 @@ fun AddLocationScreen(
                         location = location,
                         onDelete = { locationViewModel?.deleteLocation(location.locationId, location.cityName.ifBlank { location.city }) },
                         onClick  = if (onLocationSelected != null) {
-                            { onLocationSelected(location) }
+                            {
+                                // Mark location as viewed when clicked (updates lastViewedAt AND persists to User table)
+                                locationViewModel?.markLocationAsViewed(location.locationId, location.city)
+                                // Trigger the callback to switch to this location
+                                onLocationSelected(location)
+                            }
                         } else null,
                         temperatureUnit = temperatureUnit // <-- Use the parameter here
                     )

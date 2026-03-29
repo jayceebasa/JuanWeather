@@ -21,6 +21,7 @@ class JuanWeatherApp : Application() {
     val userRepository by lazy { UserRepository(database.userDao()) }
     val weatherRepository by lazy { WeatherRepository(ApiClient.getWeatherService()) }
     val userLocationDao by lazy { database.userLocationDao() }
+    val userDao by lazy { database.userDao() }  // Expose userDao for LocationViewModel dependency injection
     val appSettingsDao by lazy { database.appSettingsDao() }
     val emergencyContactDao by lazy { database.emergencyContactDao() }
     val sosSettingsDao by lazy { database.sosSettingsDao() }
