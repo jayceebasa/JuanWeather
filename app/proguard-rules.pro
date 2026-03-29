@@ -6,6 +6,14 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # ─────────────────────────────────────────────────────────────────────
+# CRITICAL: R8 Configuration - Disable optimizations that break reflection
+# ─────────────────────────────────────────────────────────────────────
+
+# Disable optimization for classes that use reflection
+-optimizationpasses 3
+-dontshrink
+
+# ─────────────────────────────────────────────────────────────────────
 # CRITICAL: Keep networking classes needed for API calls
 # ─────────────────────────────────────────────────────────────────────
 
@@ -13,6 +21,20 @@
 -keep interface com.juanweather.data.remote.** { *; }
 -keep class retrofit2.** { *; }
 -keep class okhttp3.** { *; }
+
+# ESSENTIAL: Keep Retrofit's Call, Response, and all generic wrappers
+-keep class retrofit2.Call { *; }
+-keep class retrofit2.Response { *; }
+-keep class retrofit2.Callback { *; }
+-keepclasseswithmembers class retrofit2.** {
+    <methods>;
+}
+
+# Keep all Retrofit annotations
+-keepclasseswithmembers interface * {
+    @retrofit2.http.* <methods>;
+}
+
 -keepattributes Signature
 -keepattributes *Annotation*
 -keepattributes InnerClasses
@@ -27,11 +49,21 @@
     @com.google.gson.annotations.SerializedName <fields>;
 }
 
-# CRITICAL: Keep all model classes and their field names for Gson reflection
+# CRITICAL: Gson type token for generic types (must be before model rules)
+-keep class com.google.gson.reflect.TypeToken { *; }
+-keep class * extends com.google.gson.reflect.TypeToken { *; }
+-keep class com.google.gson.reflect.TypeToken$* { *; }
+
+# CRITICAL: Preserve ALL data model classes exactly as they are
+# Do NOT rename fields, methods, or the classes themselves
 -keep class com.juanweather.data.models.** { *; }
 -keepclassmembers class com.juanweather.data.models.** {
     <init>(...);
-    *;
+    !static <fields>;
+    !static <methods>;
+    *** <fields>;
+    *** get*();
+    *** set*();
 }
 
 # Keep all ViewModel and Repository classes
@@ -42,6 +74,14 @@
 -keepattributes Exceptions
 -keepattributes RuntimeVisibleAnnotations
 -keepattributes RuntimeInvisibleAnnotations
+-keepattributes InnerClasses
+-keepattributes EnclosingMethod
+-keepattributes Signature
+-keepattributes LocalVariableTypeTable
+
+# CRITICAL: Keep generic type information for Retrofit/Gson deserialization
+-keepattributes TypeAnnotatedElement
+-keepattributes ParameterizedType
 
 # Keep Room database classes
 -keep class androidx.room.** { *; }
@@ -51,42 +91,11 @@
     @androidx.room.* <methods>;
 }
 
-# Gson type token for generic types (critical for ParameterizedType support)
--keep class com.google.gson.reflect.TypeToken { *; }
--keep class * extends com.google.gson.reflect.TypeToken { *; }
--keep class com.google.gson.reflect.TypeToken$* { *; }
-
-# CRITICAL: Keep generic type information for Retrofit/Gson deserialization
--keepattributes TypeAnnotatedElement
--keepattributes ParameterizedType
-
-# Keep all data model classes and preserve their field names/types
--keep class com.juanweather.data.models.** {
-    <init>(...);
-    !static <fields>;
-    !static <methods>;
-}
-
--keepclassmembers class com.juanweather.data.models.** {
-    *** <fields>;
-}
+# Additional Gson rules for generic type handling and internal classes
+-keep class com.google.gson.internal.** { *; }
+-keep class com.google.gson.stream.** { *; }
 
 # Preserve line numbers and source file attribute for debugging
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
-
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
-
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
-
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile

@@ -3,6 +3,7 @@ package com.juanweather.data.remote
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.reflect.TypeToken
 import com.juanweather.utils.Constants
 import okhttp3.ConnectionSpec
 import okhttp3.OkHttpClient
