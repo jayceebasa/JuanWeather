@@ -31,23 +31,35 @@ class LocationViewModel(
     val addResult: StateFlow<AddResult> = _addResult.asStateFlow()
 
     private var currentUserId: Int = 0
+    private var currentFirebaseUid: String? = null
 
     // Load locations from Room and fetch weather for each
     fun loadLocationsForUser(userId: Int, firebaseUid: String? = null, onFirstLocationLoaded: ((String) -> Unit)? = null) {
-        if (userId <= 0) return
+        if (userId <= 0) {
+            android.util.Log.e("LocationViewModel", "Invalid userId: $userId")
+            _errorMessage.value = "Invalid user ID"
+            return
+        }
 
         currentUserId = userId
+        currentFirebaseUid = firebaseUid
+        android.util.Log.d("LocationViewModel", "Loading locations for user $userId (Firebase: $firebaseUid)")
+
         // Clear previous locations before loading new user's locations
         _locationCards.value = emptyList()
         _isLoading.value = true
 
         viewModelScope.launch {
             try {
-                // First, sync Firestore locations to Room (in case they were added on other device)
+                // First, migrate old locations if they exist (for backward compatibility)
+                migrateOldLocationsIfNeeded(userId, firebaseUid)
+
+                // Then sync Firestore locations to Room (in case they were added on other device)
                 syncFirestoreLocationsToRoom(userId, firebaseUid)
 
                 // Then load from Room and display
                 locationDao.getLocationsForUser(userId).collect { locations ->
+                    android.util.Log.d("LocationViewModel", "Loaded ${locations.size} locations for user $userId")
                     fetchWeatherForLocations(locations)
 
                     // Auto-load the first location on the homepage
@@ -56,6 +68,7 @@ class LocationViewModel(
                     }
                 }
             } catch (e: Exception) {
+                android.util.Log.e("LocationViewModel", "Error loading locations: ${e.message}", e)
                 _errorMessage.value = "Failed to load locations: ${e.message}"
                 _isLoading.value = false
             }
@@ -120,6 +133,43 @@ class LocationViewModel(
         }
     }
 
+    /**
+     * Migrate old locations from previous userId to new userId
+     * This fixes accounts created before the cross-device sync update
+     */
+    private suspend fun migrateOldLocationsIfNeeded(userId: Int, firebaseUid: String?) {
+        if (firebaseUid.isNullOrBlank()) return
+
+        try {
+            // Get all locations from Firestore for this user
+            val firestoreLocations = firestoreRepository.getAllLocationsByFirebaseUid(firebaseUid)
+
+            if (firestoreLocations.isNotEmpty()) {
+                android.util.Log.d("LocationViewModel", "Found ${firestoreLocations.size} locations in Firestore, updating to userId=$userId")
+
+                // Update each location to use the new userId
+                for (location in firestoreLocations) {
+                    if (location.userId != userId) {
+                        val updatedLocation = location.copy(userId = userId)
+
+                        // Save updated location to Room
+                        locationDao.insertLocation(updatedLocation)
+                        android.util.Log.d("LocationViewModel", "Migrated location: ${location.cityName} from userId=${location.userId} to userId=$userId in Room")
+
+                        // Update in Firestore
+                        firestoreRepository.addLocation(updatedLocation)
+                        android.util.Log.d("LocationViewModel", "Updated location in Firestore: ${location.cityName}")
+                    } else {
+                        // Location already has correct userId, just ensure it's in Room
+                        locationDao.insertLocation(location)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LocationViewModel", "Error during migration: ${e.message}", e)
+        }
+    }
+
     private suspend fun fetchWeatherForLocations(locations: List<UserLocation>) {
         _isLoading.value = true
         // Filter out locations with blank cityName or userId <= 0
@@ -165,24 +215,31 @@ class LocationViewModel(
             _addResult.value = AddResult.Error("Please enter a city name")
             return
         }
-        // Ensure userId is set
+
+        // Ensure userId is set - this should always be set after loadLocationsForUser
         if (currentUserId <= 0) {
-            _addResult.value = AddResult.Error("User not loaded. Please refresh.")
+            android.util.Log.e("LocationViewModel", "Cannot add location: currentUserId=$currentUserId, firebaseUid=$currentFirebaseUid")
+            _addResult.value = AddResult.Error("User not enabled. Please log in again.")
             return
         }
+
         viewModelScope.launch {
             _addResult.value = AddResult.Loading
             val trimmedCity = cityName.trim()
 
+            android.util.Log.d("LocationViewModel", "Adding location '$trimmedCity' for user $currentUserId (Firebase: $currentFirebaseUid)")
+
             // Check duplicate in Room (case-insensitive)
             val existing = locationDao.findLocation(currentUserId, trimmedCity)
             if (existing != null) {
+                android.util.Log.d("LocationViewModel", "Location already exists in Room: $trimmedCity")
                 _addResult.value = AddResult.Error("${trimmedCity} is already in your list")
                 return@launch
             }
 
             // Also check current locationCards for duplicates (handles real-time cases)
             if (_locationCards.value.any { it.cityName.equals(trimmedCity, ignoreCase = true) || it.city.equals(trimmedCity, ignoreCase = true) }) {
+                android.util.Log.d("LocationViewModel", "Location already exists in UI: $trimmedCity")
                 _addResult.value = AddResult.Error("${trimmedCity} is already in your list")
                 return@launch
             }
@@ -192,14 +249,19 @@ class LocationViewModel(
                 weatherRepository.getWeatherForCity(trimmedCity)
                 val newLocation = UserLocation(userId = currentUserId, cityName = trimmedCity)
 
+                android.util.Log.d("LocationViewModel", "Creating location: $newLocation")
+
                 // Save to Room (offline storage)
                 locationDao.insertLocation(newLocation)
+                android.util.Log.d("LocationViewModel", "Saved to Room successfully")
 
                 // Save to Firestore (cloud sync)
                 firestoreRepository.addLocation(newLocation)
+                android.util.Log.d("LocationViewModel", "Saved to Firestore successfully")
 
                 _addResult.value = AddResult.Success
             } catch (e: Exception) {
+                android.util.Log.e("LocationViewModel", "Error adding location: ${e.message}", e)
                 _addResult.value = AddResult.Error("City not found. Please check the name.")
             }
         }

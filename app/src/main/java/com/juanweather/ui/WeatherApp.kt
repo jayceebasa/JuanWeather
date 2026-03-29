@@ -177,6 +177,20 @@ fun WeatherApp() {
                     // Sync SOS settings from Firebase to Room on login
                     sosViewModel.syncSOSSettingsOnLogin(firebaseUid)
 
+                    // Sync emergency contacts from Firestore to Room on login (async background task)
+                    if (!firebaseUid.isNullOrBlank()) {
+                        Thread {
+                            try {
+                                kotlinx.coroutines.runBlocking {
+                                    app.hybridEmergencyContactRepository.syncFirestoreContactsToRoomOnLogin(firebaseUid)
+                                    android.util.Log.d("WeatherApp", "Emergency contacts synced on login")
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("WeatherApp", "Error syncing emergency contacts: ${e.message}", e)
+                            }
+                        }.start()
+                    }
+
                     locationViewModel.loadLocationsForUser(userId, firebaseUid) { firstLocationCity ->
                         // Auto-load the first location on the homepage
                         weatherViewModel.fetchWeatherByCity(firstLocationCity)
@@ -211,6 +225,7 @@ fun WeatherApp() {
         }
 
         AppScreen.Dashboard -> {
+
             WeatherDashboardScreen(
                 weatherViewModel = weatherViewModel,
                 settingsViewModel = settingsViewModel,

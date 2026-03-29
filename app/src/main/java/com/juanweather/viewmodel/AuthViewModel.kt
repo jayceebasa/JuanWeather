@@ -56,14 +56,29 @@ class AuthViewModel(private val repository: UserRepository) : ViewModel() {
                 val result = FirebaseAuthManager.login(email, password)
                 if (result.isSuccess) {
                     val uid = result.getOrNull()
-                    // Also try to get user from local Room cache for display purposes
-                    val user = repository.login(email, password)
+                    // Try to get user from local Room cache
+                    var user = repository.login(email, password)
+
+                    // If user doesn't exist in Room (cross-device login), create them
+                    if (user == null) {
+                        android.util.Log.d("AuthViewModel", "User not in Room for email: $email, creating local copy")
+                        val newUser = com.juanweather.data.models.User(
+                            name = email.substringBefore("@"),
+                            email = email,
+                            password = password,
+                            role = "user"
+                        )
+                        repository.registerUser(newUser.name, newUser.email, newUser.password)
+                        // Now fetch the newly created user
+                        user = repository.login(email, password)
+                        android.util.Log.d("AuthViewModel", "Created user in Room: ${user?.id}")
+                    }
+
                     if (user != null) {
                         _loggedInUser.value = user
                         _authState.value = AuthState.LoginSuccess(user)
                     } else {
-                        // User exists in Firebase but not in local Room, create local copy
-                        _authState.value = AuthState.LoginSuccess(User(name = email, email = email, password = "", role = "user"))
+                        _authState.value = AuthState.Error("Failed to sync user account")
                     }
                 } else {
                     _authState.value = AuthState.Error("Invalid email or password")

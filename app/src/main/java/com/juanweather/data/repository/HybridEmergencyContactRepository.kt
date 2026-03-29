@@ -192,4 +192,33 @@ class HybridEmergencyContactRepository(
         val contacts = getAllContactsOnce()
         // Data is already synced in getAllContactsOnce
     }
+
+    /**
+     * Sync Firestore contacts to Room on login
+     * Ensures emergency contacts saved in Firestore are available offline
+     */
+    suspend fun syncFirestoreContactsToRoomOnLogin(firebaseUid: String) {
+        try {
+            // Fetch all contacts from Firestore
+            val snapshot = firestore.collection("users").document(firebaseUid)
+                .collection("emergencyContacts")
+                .whereNotEqualTo("id", "_init")
+                .get()
+                .await()
+
+            val firestoreContacts = snapshot.documents.mapNotNull { doc ->
+                doc.toObject(EmergencyContact::class.java)
+            }
+
+            // Update Room with fetched data
+            roomDao.deleteAllContacts()
+            if (firestoreContacts.isNotEmpty()) {
+                roomDao.insertContacts(firestoreContacts)
+            }
+
+            android.util.Log.d("HybridEmergencyContactRepository", "Synced ${firestoreContacts.size} emergency contacts to Room")
+        } catch (e: Exception) {
+            android.util.Log.e("HybridEmergencyContactRepository", "Error syncing contacts on login: ${e.message}", e)
+        }
+    }
 }
