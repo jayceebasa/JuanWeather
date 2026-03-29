@@ -30,6 +30,11 @@ class UserRepository(private val userDao: UserDao) {
         return userDao.getUserByCredentials(email, password)
     }
 
+    // READ - Get user by email only (for session restoration)
+    suspend fun getUserByEmail(email: String): User? {
+        return userDao.getUserByEmail(email)
+    }
+
     // UPDATE - Update user profile
     suspend fun updateUser(user: User) {
         userDao.updateUser(user)

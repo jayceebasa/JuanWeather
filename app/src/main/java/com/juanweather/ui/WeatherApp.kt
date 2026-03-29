@@ -86,7 +86,7 @@ fun WeatherApp() {
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                return AuthViewModel(app.userRepository) as T
+                return AuthViewModel(app.userRepository, context) as T
             }
         }
     )
