@@ -1,5 +1,7 @@
 package com.juanweather.ui
 
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -69,6 +71,10 @@ class NavigationController {
     fun getBackStackState(): List<AppScreen> {
         return backStack.toList()
     }
+
+    fun canGoBack(): Boolean {
+        return backStack.size > 1
+    }
 }
 
 /**
@@ -81,7 +87,7 @@ fun WeatherApp() {
     val context = LocalContext.current
     val app = context.applicationContext as JuanWeatherApp
 
-    // Build AuthViewModel with Room-backed repository
+    // ...existing ViewModels initialization...
     val authViewModel: AuthViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -91,7 +97,6 @@ fun WeatherApp() {
         }
     )
 
-    // Build WeatherViewModel with weatherapi.com repository
     val weatherViewModel: WeatherViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -101,7 +106,6 @@ fun WeatherApp() {
         }
     )
 
-    // Build LocationViewModel — per-user saved locations
     val locationViewModel: LocationViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -115,7 +119,6 @@ fun WeatherApp() {
         }
     )
 
-    // Build SettingsViewModel — unified settings sync (Firebase + Room)
     val settingsViewModel: com.juanweather.viewmodel.SettingsViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -128,7 +131,6 @@ fun WeatherApp() {
         }
     )
 
-    // Build EmergencyContactViewModel — Hybrid Firestore + Room caching
     val emergencyContactViewModel: EmergencyContactViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -140,7 +142,6 @@ fun WeatherApp() {
         }
     )
 
-    // Build SOSViewModel — SOS alert management with FMCSMS integration
     val sosViewModel: com.juanweather.viewmodel.SOSViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -157,10 +158,51 @@ fun WeatherApp() {
 
     val navigationController = remember { NavigationController() }
     val currentScreen = remember { mutableStateOf(AppScreen.Login) }
+    val backPressedOnDashboard = remember { mutableStateOf(false) }
 
     // RBAC — observe admin status reactively
     val isAdmin by authViewModel.isAdmin.collectAsState()
     val loggedInUser by authViewModel.loggedInUser.collectAsState()
+
+    // Reset backPressedOnDashboard after 2 seconds
+    LaunchedEffect(backPressedOnDashboard.value, currentScreen.value) {
+        if (backPressedOnDashboard.value && currentScreen.value == AppScreen.Dashboard) {
+            kotlinx.coroutines.delay(2000)
+            backPressedOnDashboard.value = false
+        }
+    }
+
+    // Handle system back button press
+    BackHandler {
+        when (currentScreen.value) {
+            AppScreen.Dashboard -> {
+                // On dashboard, show toast and require second back press to exit
+                if (backPressedOnDashboard.value) {
+                    // Second back press - exit app
+                    (context as? android.app.Activity)?.finish()
+                } else {
+                    // First back press - show message
+                    backPressedOnDashboard.value = true
+                    Toast.makeText(context, "Press back button again to close the application", Toast.LENGTH_SHORT).show()
+                }
+            }
+            else -> {
+                // On other screens, navigate back normally
+                if (navigationController.canGoBack()) {
+                    navigationController.navigateBack()
+                    currentScreen.value = navigationController.getCurrentScreen()
+                    backPressedOnDashboard.value = false
+                }
+            }
+        }
+    }
+
+    // Reset backPressedOnDashboard when leaving dashboard
+    LaunchedEffect(currentScreen.value) {
+        if (currentScreen.value != AppScreen.Dashboard) {
+            backPressedOnDashboard.value = false
+        }
+    }
 
     when (currentScreen.value) {
         AppScreen.Login -> {
