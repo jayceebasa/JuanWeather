@@ -7,7 +7,7 @@ import androidx.room.PrimaryKey
 data class SOSSettings(
     @PrimaryKey
     val id: String = "sos_settings",
-    val enableLocationSharing: Boolean = true,
+    val enableLocationSharing: Boolean = false,
     val messageTemplate: String = "I need help. This is an emergency SOS alert from JuanWeather.",
     val lastSentTime: Long = 0
 )

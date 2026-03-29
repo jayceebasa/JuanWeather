@@ -14,7 +14,7 @@ import com.juanweather.data.models.SOSSettings
 
 @Database(
     entities = [User::class, UserLocation::class, AppSettings::class, EmergencyContact::class, SOSSettings::class],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -152,6 +152,14 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Migration from v9 → v10: reset enableLocationSharing to false for all SOS settings
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Reset all enableLocationSharing to 0 (false) - location sharing should be OFF by default
+                db.execSQL("UPDATE sos_settings SET enableLocationSharing = 0")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -159,7 +167,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "juanweather.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
                     .build()
                 INSTANCE = instance
                 instance

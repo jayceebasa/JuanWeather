@@ -1084,11 +1084,12 @@ fun EmergencyContactScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .padding(top = 32.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 12.dp, top = 16.dp, end = 12.dp)
+                    .padding(start = 12.dp, top = 8.dp, end = 12.dp)
                     .clickable { onBack() },
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1810,12 +1811,29 @@ fun SOSSettingsScreen(
     viewModel: com.juanweather.viewmodel.SOSViewModel? = null,
     emergencyContacts: List<com.juanweather.data.models.EmergencyContact> = emptyList()
 ) {
-    val toggleLocation = viewModel?.toggleLocation?.collectAsState()?.value ?: true
+    val toggleLocation = viewModel?.toggleLocation?.collectAsState()?.value ?: false
     val messageTemplate = viewModel?.messageTemplate?.collectAsState()?.value ?: "I need help. This is an emergency SOS alert from JuanWeather."
     val isLoading = viewModel?.isLoading?.collectAsState()?.value ?: false
     val errorMessage = viewModel?.errorMessage?.collectAsState()?.value
     val successMessage = viewModel?.successMessage?.collectAsState()?.value
     val showSuccessDialog = remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // Permission launcher
+    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineLocationGranted = permissions[android.Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+        val coarseLocationGranted = permissions[android.Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+
+        if (fineLocationGranted || coarseLocationGranted) {
+            // Permission granted, proceed with location sharing
+            viewModel?.updateLocationSharing(true)
+        } else {
+            // Permission denied, keep toggle OFF
+            viewModel?.updateLocationSharing(false)
+        }
+    }
 
     LaunchedEffect(successMessage) {
         if (successMessage != null) {
@@ -1848,11 +1866,12 @@ fun SOSSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .padding(top = 32.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 12.dp, top = 16.dp, end = 12.dp)
+                    .padding(start = 12.dp, top = 8.dp, end = 12.dp)
                     .clickable { onBack() },
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1891,6 +1910,7 @@ fun SOSSettingsScreen(
 
             Spacer(modifier = Modifier.height(48.dp))
 
+            // Title card
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1965,7 +1985,17 @@ fun SOSSettingsScreen(
                         Switch(
                             checked = toggleLocation,
                             onCheckedChange = { newValue ->
-                                viewModel?.updateLocationSharing(newValue)
+                                if (newValue) {
+                                    // User is trying to turn ON location sharing
+                                    // Request permissions
+                                    permissionLauncher.launch(arrayOf(
+                                        android.Manifest.permission.ACCESS_FINE_LOCATION,
+                                        android.Manifest.permission.ACCESS_COARSE_LOCATION
+                                    ))
+                                } else {
+                                    // User is turning OFF location sharing
+                                    viewModel?.updateLocationSharing(false)
+                                }
                             },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color(0xFF4CAF50),
@@ -2206,11 +2236,12 @@ fun AboutSupportScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .padding(top = 32.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 12.dp, top = 16.dp, end = 12.dp)
+                    .padding(start = 12.dp, top = 8.dp, end = 12.dp)
                     .clickable { onBack() },
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -2829,18 +2860,17 @@ fun AddLocationScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .padding(top = 32.dp)
         ) {
-            // Back button
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 48.dp)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .padding(start = 12.dp, top = 8.dp, end = 12.dp)
                     .clickable { onBack() },
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(20.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
@@ -2851,10 +2881,11 @@ fun AddLocationScreen(
                         drawLine(color = Color.White, start = Offset(centerX - length / 2, centerY), end = Offset(centerX + length / 2, centerY + length / 2), strokeWidth = 2.2f)
                     }
                 }
+
                 Text(
                     text = "Previous",
                     color = Color.White,
-                    fontSize = 15.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(start = 8.dp)
                 )
@@ -2930,9 +2961,10 @@ fun AddLocationScreen(
                 ) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         drawCircle(color = Color(0xFFB0BEC5), radius = size.width / 2, alpha = 0.5f)
-                        val cx = size.width / 2; val cy = size.height / 2; val len = size.width / 4
-                        drawLine(color = Color.White, start = Offset(cx, cy - len), end = Offset(cx, cy + len), strokeWidth = 2.5f)
-                        drawLine(color = Color.White, start = Offset(cx - len, cy), end = Offset(cx + len, cy), strokeWidth = 2.5f)
+                        val centerX = size.width / 2; val centerY = size.height / 2; val len = size.width / 4
+
+                        drawLine(color = Color.White, start = Offset(centerX, centerY - len), end = Offset(centerX, centerY + len), strokeWidth = 2.5f)
+                        drawLine(color = Color.White, start = Offset(centerX - len, centerY), end = Offset(centerX + len, centerY), strokeWidth = 2.5f)
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
@@ -3225,12 +3257,13 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .padding(top = 32.dp)
         ) {
             // Back button
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 12.dp, top = 16.dp, end = 12.dp)
+                    .padding(start = 12.dp, top = 8.dp, end = 12.dp)
                     .clickable { onBack() },
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -3350,6 +3383,8 @@ fun SettingsItemCard(
     item: SettingsItem,
     onClick: () -> Unit
 ) {
+    var expanded by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -3406,20 +3441,37 @@ fun SettingsItemCard(
                     val centerY = size.height / 2
                     val length = size.width / 3
 
-                    drawLine(
-                        color = Color.White,
-                        start = Offset(centerX - length / 2, centerY - length / 2),
-                        end = Offset(centerX + length / 2, centerY),
-                        strokeWidth = 2f,
-                        alpha = 0.5f
-                    )
-                    drawLine(
-                        color = Color.White,
-                        start = Offset(centerX + length / 2, centerY),
-                        end = Offset(centerX - length / 2, centerY + length / 2),
-                        strokeWidth = 2f,
-                        alpha = 0.5f
-                    )
+                    if (expanded) {
+                        // Chevron up
+                        drawLine(
+                            color = Color(0xFF81C784),
+                            start = Offset(centerX - length / 2, centerY + length / 2),
+                            end = Offset(centerX, centerY - length / 2),
+                            strokeWidth = 2f
+                        )
+                        drawLine(
+                            color = Color(0xFF81C784),
+                            start = Offset(centerX, centerY - length / 2),
+                            end = Offset(centerX + length / 2, centerY + length / 2),
+                            strokeWidth = 2f
+                        )
+                    } else {
+                        // Chevron down
+                        drawLine(
+                            color = Color.White.copy(alpha = 0.6f),
+                            start = Offset(centerX - length / 2, centerY - length / 2),
+                            end = Offset(centerX + length / 2, centerY),
+                            strokeWidth = 2f,
+                            alpha = 0.5f
+                        )
+                        drawLine(
+                            color = Color.White.copy(alpha = 0.6f),
+                            start = Offset(centerX + length / 2, centerY),
+                            end = Offset(centerX - length / 2, centerY + length / 2),
+                            strokeWidth = 2f,
+                            alpha = 0.5f
+                        )
+                    }
                 }
             }
         }
@@ -3576,15 +3628,13 @@ fun PlaceholderScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            // Back button
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 12.dp, top = 16.dp, end = 12.dp)
+                    .padding(start = 12.dp, top = 8.dp, end = 12.dp)
                     .clickable { onBack() },
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Back arrow icon
                 Box(
                     modifier = Modifier.size(20.dp),
                     contentAlignment = Alignment.Center
@@ -3709,12 +3759,12 @@ fun WeatherPreferencesScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .padding(top = 32.dp)
         ) {
-            // Back button
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 12.dp, top = 16.dp, end = 12.dp)
+                    .padding(start = 12.dp, top = 8.dp, end = 12.dp)
                     .clickable { onBack() },
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -3892,8 +3942,7 @@ fun SettingsTileWithOptions(
 
                 // Dropdown indicator
                 Box(
-                    modifier = Modifier
-                        .size(24.dp),
+                    modifier = Modifier.size(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
@@ -4376,4 +4425,5 @@ fun convertVisibility(km: Double, toMiles: Boolean): String {
         "${km.toInt()} km"
     }
 }
+
 

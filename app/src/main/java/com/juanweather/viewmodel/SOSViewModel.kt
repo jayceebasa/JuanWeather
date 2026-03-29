@@ -27,7 +27,7 @@ class SOSViewModel(
     private val _settings = MutableStateFlow<SOSSettings?>(null)
     val settings: StateFlow<SOSSettings?> = _settings.asStateFlow()
 
-    private val _toggleLocation = MutableStateFlow(true)
+    private val _toggleLocation = MutableStateFlow(false)
     val toggleLocation: StateFlow<Boolean> = _toggleLocation.asStateFlow()
 
     private val _messageTemplate = MutableStateFlow("I need help. This is an emergency SOS alert from JuanWeather.")
