@@ -185,6 +185,14 @@ fun WeatherApp() {
     val isAdmin by authViewModel.isAdmin.collectAsState()
     val loggedInUser by authViewModel.loggedInUser.collectAsState()
 
+    // Update SOS viewmodel with logged-in user name whenever user changes
+    LaunchedEffect(loggedInUser?.name) {
+        val user = loggedInUser
+        if (user != null) {
+            sosViewModel.setUserName(user.name)
+        }
+    }
+
     // Reset backPressedOnDashboard after 2 seconds
     LaunchedEffect(backPressedOnDashboard.value, currentScreen.value) {
         if (backPressedOnDashboard.value && currentScreen.value == AppScreen.Dashboard) {
@@ -305,6 +313,8 @@ fun WeatherApp() {
             WeatherDashboardScreen(
                 weatherViewModel = weatherViewModel,
                 settingsViewModel = settingsViewModel,
+                sosViewModel = sosViewModel,
+                emergencyContactViewModel = emergencyContactViewModel,
                 onNavigateToAddLocation = {
                     navigationController.navigate(AppScreen.AddLocation)
                     currentScreen.value = AppScreen.AddLocation

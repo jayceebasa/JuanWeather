@@ -102,6 +102,14 @@ class SOSViewModel(
         _userName.value = name
     }
 
+    fun clearErrorMessage() {
+        _errorMessage.value = null
+    }
+
+    fun clearSuccessMessage() {
+        _successMessage.value = null
+    }
+
     /**
      * Send SOS alert to emergency contacts
      * @param emergencyContacts List of phone numbers to send to

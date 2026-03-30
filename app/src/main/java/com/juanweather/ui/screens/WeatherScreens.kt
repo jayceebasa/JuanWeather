@@ -91,14 +91,31 @@ fun WeatherDashboardScreen(
     onNavigateToUserManagement: () -> Unit = {},
     isAdmin: Boolean = false,
     weatherViewModel: com.juanweather.viewmodel.WeatherViewModel? = null,
-    settingsViewModel: com.juanweather.viewmodel.SettingsViewModel? = null
+    settingsViewModel: com.juanweather.viewmodel.SettingsViewModel? = null,
+    sosViewModel: com.juanweather.viewmodel.SOSViewModel? = null,
+    emergencyContactViewModel: com.juanweather.viewmodel.EmergencyContactViewModel? = null
 ) {
     val showSosPopup = remember { mutableStateOf(false) }
     val showSosConfirmation = remember { mutableStateOf(false) }
+    val showSosNoContactsError = remember { mutableStateOf(false) }
 
     // Collect settings for unit conversions
     val settingsState = settingsViewModel?.settings?.collectAsState()
     val settings = settingsState?.value
+
+    // Collect emergency contacts
+    val emergencyContacts = emergencyContactViewModel?.contacts?.collectAsState()?.value ?: emptyList<com.juanweather.data.models.EmergencyContact>()
+
+    // Collect SOS view model states
+    val sosIsLoading = sosViewModel?.isLoading?.collectAsState()?.value ?: false
+    val sosErrorMessage = sosViewModel?.errorMessage?.collectAsState()?.value
+    val sosSuccessMessage = sosViewModel?.successMessage?.collectAsState()?.value
+
+    // Clear SOS messages when dashboard is first displayed to prevent stale messages
+    LaunchedEffect(Unit) {
+        sosViewModel?.clearErrorMessage()
+        sosViewModel?.clearSuccessMessage()
+    }
 
     // Collect real weather data from ViewModel
     val locationName  = weatherViewModel?.locationName?.collectAsState()?.value  ?: ""
@@ -206,7 +223,11 @@ fun WeatherDashboardScreen(
                 Card(
                     modifier = Modifier
                         .clickable {
-                            showSosConfirmation.value = true
+                            if (emergencyContacts.isEmpty()) {
+                                showSosNoContactsError.value = true
+                            } else {
+                                showSosConfirmation.value = true
+                            }
                         }
                         .padding(8.dp),
                     shape = RoundedCornerShape(20.dp),
@@ -991,7 +1012,11 @@ fun WeatherDashboardScreen(
                 Button(
                     onClick = {
                         showSosConfirmation.value = false
-                        showSosPopup.value = true
+                        // Convert phone numbers to E.164 format and send SOS
+                        val formattedNumbers = emergencyContacts.map { contact ->
+                            PhoneNumberValidator.formatPhilippineNumber(contact.phoneNumber)
+                        }
+                        sosViewModel?.sendSOS(formattedNumbers, includeLocation = true)
                     },
                     colors = androidx.compose.material3.ButtonDefaults.buttonColors(
                         containerColor = Color(0xFFBA1E1E)
@@ -1015,10 +1040,104 @@ fun WeatherDashboardScreen(
         )
     }
 
+    // SOS No Contacts Error Dialog
+    if (showSosNoContactsError.value) {
+        AlertDialog(
+            title = {
+                Text(
+                    text = "No Emergency Contacts",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            text = {
+                Text(
+                    text = "Please add emergency contacts before using the SOS feature. Go to Settings to add emergency contacts.",
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 14.sp,
+                    lineHeight = 18.sp
+                )
+            },
+            onDismissRequest = { showSosNoContactsError.value = false },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSosNoContactsError.value = false
+                        onNavigateToSettings()
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFBA1E1E)
+                    )
+                ) {
+                    Text("Go to Settings", color = Color.White, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { showSosNoContactsError.value = false },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = Color.Gray
+                    )
+                ) {
+                    Text("Cancel", color = Color.White, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            containerColor = Color(0xFF2F2E2E).copy(alpha = 0.95f),
+            textContentColor = Color.White
+        )
+    }
+
+    // Show success dialog when SOS completes successfully
+    LaunchedEffect(sosSuccessMessage) {
+        if (sosSuccessMessage != null && !sosSuccessMessage.isBlank()) {
+            showSosPopup.value = true
+            delay(2000)
+            showSosPopup.value = false
+            sosViewModel?.clearSuccessMessage()  // Clear after showing
+        }
+    }
+
+    // Show error message when SOS fails
+    if (sosErrorMessage != null && !sosErrorMessage.isBlank()) {
+        AlertDialog(
+            title = {
+                Text(
+                    text = "SOS Failed",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            text = {
+                Text(
+                    text = sosErrorMessage,
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 14.sp,
+                    lineHeight = 18.sp
+                )
+            },
+            onDismissRequest = { sosViewModel?.clearErrorMessage() },
+            confirmButton = {
+                Button(
+                    onClick = { sosViewModel?.clearErrorMessage() },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFBA1E1E)
+                    )
+                ) {
+                    Text("OK", color = Color.White, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            containerColor = Color(0xFF2F2E2E).copy(alpha = 0.95f),
+            textContentColor = Color.White
+        )
+    }
+
     // SOS Success Dialog
     if (showSosPopup.value) {
         SosSuccessDialog(
-            onDismiss = { showSosPopup.value = false }
+            onDismiss = { showSosPopup.value = false },
+            message = sosSuccessMessage ?: "Message sent!"
         )
 
         LaunchedEffect(Unit) {
@@ -1818,6 +1937,11 @@ fun SOSSettingsScreen(
     val successMessage = viewModel?.successMessage?.collectAsState()?.value
     val showSuccessDialog = remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
+
+    // Clear messages when screen is first displayed to prevent stale messages
+    LaunchedEffect(Unit) {
+        viewModel?.clearMessages()
+    }
 
     // Permission launcher
     val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -2721,7 +2845,8 @@ fun AboutSupportScreen(
 
 @Composable
 fun SosSuccessDialog(
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    message: String = "Your SOS alert has been sent to emergency contacts"
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -2768,7 +2893,7 @@ fun SosSuccessDialog(
                 )
 
                 Text(
-                    text = "Your SOS alert has been sent to emergency contacts",
+                    text = message,
                     fontSize = 14.sp,
                     color = Color.White.copy(alpha = 0.8f),
                     textAlign = TextAlign.Center,
